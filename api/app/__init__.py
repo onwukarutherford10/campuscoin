@@ -8,6 +8,7 @@ from app.api.health import health
 from app.config import CONFIGS
 from app.extensions import cors, csrf, db, migrate
 from app.logging import configure_logging
+from app.utils.security import init_api_security
 
 
 def create_app(config_name: str | None = None, overrides: dict | None = None) -> Flask:
@@ -26,6 +27,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    csrf.exempt(api_v1)
     cors.init_app(
         app,
         resources={r"/api/*": {"origins": app.config["FRONTEND_ORIGINS"]}},
@@ -34,7 +36,12 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
 
     app.register_blueprint(health)
     app.register_blueprint(api_v1, url_prefix="/api/v1")
+    init_api_security(app, api_v1)
     register_error_handlers(app)
+
+    from app.commands.seed import register_commands
+
+    register_commands(app)
 
     # Ensure model metadata is registered for Flask-Migrate.
     from app import models  # noqa: F401
