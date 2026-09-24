@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Index, Integer, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import db
@@ -30,6 +31,9 @@ class Job(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model):
     __tablename__ = "jobs"
     __table_args__ = (Index("ix_jobs_status_available_at", "status", "available_at"),)
 
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     job_type: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=JobStatus.PENDING)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
