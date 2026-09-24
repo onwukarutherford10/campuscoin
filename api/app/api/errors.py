@@ -6,6 +6,7 @@ from app.api.responses import failure
 from app.services.auth import AuthError
 from app.services.categories import CategoryError
 from app.services.rate_limit import RateLimitExceeded
+from app.services.transactions import LedgerError
 
 
 def register_error_handlers(app: Flask) -> None:
@@ -20,6 +21,10 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(RateLimitExceeded)
     def rate_limit_error(_error: RateLimitExceeded):
         return failure("rate_limit_exceeded", "Too many attempts; try again later", status=429)
+
+    @app.errorhandler(LedgerError)
+    def ledger_error(error: LedgerError):
+        return failure(error.code, error.message, status=error.status)
 
     @app.errorhandler(ValidationError)
     def validation_error(error: ValidationError):

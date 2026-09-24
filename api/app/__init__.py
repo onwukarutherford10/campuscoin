@@ -40,8 +40,10 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     register_error_handlers(app)
 
     from app.commands.seed import register_commands
+    from app.commands.transactions import register_transaction_commands
 
     register_commands(app)
+    register_transaction_commands(app)
 
     # Ensure model metadata is registered for Flask-Migrate.
     from app import models  # noqa: F401

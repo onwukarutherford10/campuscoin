@@ -38,6 +38,10 @@ class BaseConfig:
     COOKIE_SAMESITE = "Lax"
     RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "900"))
     RATE_LIMIT_MAX_ATTEMPTS = int(os.getenv("RATE_LIMIT_MAX_ATTEMPTS", "10"))
+    CSV_SYNC_ROW_LIMIT = int(os.getenv("CSV_SYNC_ROW_LIMIT", "500"))
+    CSV_PREVIEW_TTL_HOURS = int(os.getenv("CSV_PREVIEW_TTL_HOURS", "24"))
+    DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", "25"))
+    MAX_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", "100"))
 
     @classmethod
     def validate(cls, config: dict[str, Any]) -> None:
