@@ -1,4 +1,5 @@
 import { Navigate, createBrowserRouter, RouterProvider } from "react-router-dom";
+import LandingPage from "./features/landing/LandingPage";
 import Login from "./features/auth/Login";
 import SignUp from "./features/auth/SignUp";
 import OtpPage from "./features/auth/Otp";
@@ -51,7 +52,8 @@ function ProtectedOtp() {
 }
 
 const router = createBrowserRouter([
-  { path: "/", element: <Login /> },
+  { path: "/", element: <LandingPage /> },
+  {path: "/login", element: <Login/>},
   { path: "/signup", element: <SignUp /> },
   { path: "/otp", element: <ProtectedOtp /> },
   { path: "/forgetpassword", element: <ForgetPassword /> },
