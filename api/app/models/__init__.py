@@ -1,6 +1,7 @@
 from app.models.auth import AuthSession, PasswordResetToken
 from app.models.category import Category, CategoryType
 from app.models.job import Job, JobStatus, JobType
+from app.models.planning import Budget, Notification, ReportExport, TipState
 from app.models.recurrence import RecurrenceFrequency, RecurringRule
 from app.models.security import AuditLog, RateLimitRecord
 from app.models.transaction import (
@@ -21,6 +22,10 @@ __all__ = [
     "Job",
     "JobStatus",
     "JobType",
+    "Budget",
+    "Notification",
+    "ReportExport",
+    "TipState",
     "PasswordResetToken",
     "RateLimitRecord",
     "RecurrenceFrequency",

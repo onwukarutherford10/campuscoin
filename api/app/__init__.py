@@ -40,11 +40,13 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     init_api_security(app, api_v1)
     register_error_handlers(app)
 
+    from app.commands.reports import register_report_commands
     from app.commands.seed import register_commands
     from app.commands.transactions import register_transaction_commands
 
     register_commands(app)
     register_transaction_commands(app)
+    register_report_commands(app)
 
     # Ensure model metadata is registered for Flask-Migrate.
     from app import models  # noqa: F401
