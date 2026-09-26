@@ -7,4 +7,9 @@ export default defineConfig({
   plugins: [react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/api': process.env.CAMPUSCOIN_API_PROXY_TARGET ?? 'http://localhost:5000',
+    },
+  },
 })

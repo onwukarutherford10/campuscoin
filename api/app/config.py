@@ -34,6 +34,8 @@ class BaseConfig:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = _as_bool(os.getenv("COOKIE_SECURE", "false"))
+    # API requests use the cookie/header check in init_api_security instead.
+    WTF_CSRF_CHECK_DEFAULT = False
     WTF_CSRF_TIME_LIMIT = 3600
     ACCESS_TOKEN_TTL = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MINUTES", "15")))
     REFRESH_TOKEN_TTL = timedelta(days=int(os.getenv("REFRESH_TOKEN_DAYS", "30")))
@@ -90,6 +92,7 @@ class TestingConfig(BaseConfig):
 
 class ProductionConfig(BaseConfig):
     SESSION_COOKIE_SECURE = True
+    COOKIE_SECURE = True
 
     @classmethod
     def validate(cls, config: dict[str, Any]) -> None:

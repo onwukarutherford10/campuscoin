@@ -37,3 +37,5 @@ def test_production_accepts_mysql():
         },
     )
     assert app.config["SQLALCHEMY_ENGINE_OPTIONS"]["pool_pre_ping"] is True
+    assert app.config["COOKIE_SECURE"] is True
+    assert app.config["WTF_CSRF_CHECK_DEFAULT"] is False
