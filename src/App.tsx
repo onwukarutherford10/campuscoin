@@ -20,20 +20,34 @@ import { ToastHost } from "./components/ToastHost";
 import { DATA_MODE } from "./services/api/config.ts";
 import { restoreSession } from "./auth/liveAuth.ts";
 import { LiveFeaturePending } from "./components/LiveFeaturePending.tsx";
+import { useLiveAuth } from "./auth/useLiveAuth.ts";
+import { LiveDashboard } from "./features/dashboard/LiveDashboard.tsx";
+import { LiveProfilePage } from "./features/profile/LiveProfilePage.tsx";
 
 
 function ProtectedLayout() {
   return (
     <RequireAuth>
-      {DATA_MODE === "live" ? <LiveFeaturePending title="Your dashboard" /> : <DashboardLayout />}
+      <OnboardingGate completed>
+        <DashboardLayout />
+      </OnboardingGate>
     </RequireAuth>
   );
+}
+
+function OnboardingGate({ completed, children }: { completed: boolean; children: React.ReactNode }) {
+  const auth = useLiveAuth();
+  if (DATA_MODE === "mock") return <>{children}</>;
+  if (Boolean(auth.user?.onboarding_completed) !== completed) {
+    return <Navigate to={completed ? "/onboarding" : "/dashboard"} replace />;
+  }
+  return <>{children}</>;
 }
 
 function ProtectedOnboarding() {
   return (
     <RequireAuth>
-      {DATA_MODE === "live" ? <LiveFeaturePending title="Onboarding" /> : <Onboarding />}
+      <OnboardingGate completed={false}><Onboarding /></OnboardingGate>
     </RequireAuth>
   );
 }
@@ -41,7 +55,7 @@ function ProtectedOnboarding() {
 function ProtectedOnboardingComplete() {
   return (
     <RequireAuth>
-      {DATA_MODE === "live" ? <LiveFeaturePending title="Onboarding" /> : <OnboardingComplete />}
+      <OnboardingGate completed><OnboardingComplete /></OnboardingGate>
     </RequireAuth>
   );
 }
@@ -67,12 +81,12 @@ const router = createBrowserRouter([
   {
     element: <ProtectedLayout />,
     children: [
-      { path: "/dashboard", element: <Dashboard /> },
-      { path: "/transactions", element: <TransactionsPage /> },
-      { path: "/budgets", element: <BudgetsPage /> },
-      { path: "/categories", element: <CategoriesPage /> },
-      { path: "/reports", element: <ReportsPage /> },
-      { path: "/settings", element: <ProfilePage /> },
+      { path: "/dashboard", element: DATA_MODE === "live" ? <LiveDashboard /> : <Dashboard /> },
+      { path: "/transactions", element: DATA_MODE === "live" ? <LiveFeaturePending title="Transactions" /> : <TransactionsPage /> },
+      { path: "/budgets", element: DATA_MODE === "live" ? <LiveFeaturePending title="Budgets" /> : <BudgetsPage /> },
+      { path: "/categories", element: DATA_MODE === "live" ? <LiveFeaturePending title="Categories" /> : <CategoriesPage /> },
+      { path: "/reports", element: DATA_MODE === "live" ? <LiveFeaturePending title="Reports" /> : <ReportsPage /> },
+      { path: "/settings", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },

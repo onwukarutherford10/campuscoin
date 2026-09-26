@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { IncomeSource, OnboardingData, SpendingCategory } from "../../types";
-import { loadOnboardingData, saveOnboardingData } from "../../utils/storage";
+import type { AcademicLevel, OnboardingData } from "../../types";
+import { emptyOnboardingData, loadOnboardingData, saveOnboardingData } from "../../utils/storage";
 import { BrandMark } from "../../components/BrandMark";
 import { OnboardingShell } from "./OnboardingShell";
 import { StepRail } from "./StepRail";
@@ -10,8 +10,30 @@ import { IncomeSourcesStep } from "./steps/IncomeSourcesStep";
 import { MonthlyIncomeStep } from "./steps/MonthlyIncomeStep";
 import { SavingsGoalStep } from "./steps/SavingsGoalStep";
 import { SpendingAreasStep } from "./steps/SpendingAreasStep";
+import { DATA_MODE } from "../../services/api/config";
+import { api } from "../../services/api";
+import type { ApiCategory } from "../../services/api/dto";
+import { getAuthSnapshot } from "../../services/api/authState";
+import { updateLiveProfile } from "../../auth/liveAuth";
+import { numberToMoney } from "../../services/api/adapters";
+import { toServiceError } from "../../services/api/errors";
 
 const TOTAL_STEPS = 5;
+
+function initialData(): OnboardingData {
+  if (DATA_MODE === "mock") return loadOnboardingData();
+  const user = getAuthSnapshot().user;
+  if (!user) return { ...emptyOnboardingData };
+  return {
+    fullName: user.name,
+    academicLevel: (user.academic_year as AcademicLevel | null) ?? "",
+    incomeSources: user.income_source_category_ids,
+    monthlyIncome: Number(user.allowance_baseline),
+    savingsGoal: Number(user.savings_goal) || null,
+    spendingCategories: user.spending_category_ids,
+    completed: user.onboarding_completed,
+  };
+}
 
 interface StepContent {
   title: string;
@@ -45,12 +67,24 @@ const STEPS: StepContent[] = [
 export function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [data, setData] = useState<OnboardingData>(() => loadOnboardingData());
+  const [data, setData] = useState<OnboardingData>(initialData);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [loading, setLoading] = useState(DATA_MODE === "live");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (DATA_MODE !== "live") return;
+    api.request<ApiCategory[]>("/categories")
+      .then((response) => setCategories(response.data.filter((category) => category.is_active)))
+      .catch((requestError) => setError(toServiceError(requestError).error))
+      .finally(() => setLoading(false));
+  }, []);
 
   function update(patch: Partial<OnboardingData>) {
     setData((previous) => {
       const next = { ...previous, ...patch };
-      saveOnboardingData(next);
+      if (DATA_MODE === "mock") saveOnboardingData(next);
       return next;
     });
   }
@@ -61,18 +95,18 @@ export function Onboarding() {
 
   // Toggle from the latest state so rapid successive toggles never overwrite
   // each other (the patch built from a stale `data` closure would).
-  function toggleIncomeSource(source: IncomeSource) {
+  function toggleIncomeSource(source: string) {
     setData((previous) => {
       const next = { ...previous, incomeSources: toggleInList(previous.incomeSources, source) };
-      saveOnboardingData(next);
+      if (DATA_MODE === "mock") saveOnboardingData(next);
       return next;
     });
   }
 
-  function toggleSpendingCategory(category: SpendingCategory) {
+  function toggleSpendingCategory(category: string) {
     setData((previous) => {
       const next = { ...previous, spendingCategories: toggleInList(previous.spendingCategories, category) };
-      saveOnboardingData(next);
+      if (DATA_MODE === "mock") saveOnboardingData(next);
       return next;
     });
   }
@@ -93,7 +127,31 @@ export function Onboarding() {
     setStep((current) => current - 1);
   }
 
-  function handleContinue() {
+  async function handleContinue() {
+    if (DATA_MODE === "live") {
+      setSaving(true);
+      setError("");
+      try {
+        const patches = [
+          {
+            name: data.fullName.trim(),
+            academic_year: data.academicLevel || null,
+            currency: "NGN",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos",
+          },
+          { income_source_category_ids: data.incomeSources },
+          { allowance_baseline: numberToMoney(data.monthlyIncome ?? 0) },
+          { savings_goal: numberToMoney(data.savingsGoal ?? 0) },
+          { spending_category_ids: data.spendingCategories, onboarding_completed: true },
+        ];
+        await updateLiveProfile(patches[step - 1]);
+      } catch (requestError) {
+        setError(toServiceError(requestError).error);
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+    }
     if (step < TOTAL_STEPS) {
       setStep((current) => current + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -101,6 +159,8 @@ export function Onboarding() {
     }
     navigate("/onboarding/complete");
   }
+
+  if (loading) return <main className="p-8 text-center">Loading your saved setup…</main>;
 
   const content = STEPS[step - 1];
 
@@ -116,11 +176,12 @@ export function Onboarding() {
         title={content.title}
         description={content.description}
         rail={<StepRail currentStep={step} totalSteps={TOTAL_STEPS} />}
-        canContinue={canContinue}
+        canContinue={canContinue && !saving}
         onBack={handleBack}
         onContinue={handleContinue}
-        continueLabel={step === TOTAL_STEPS ? "Finish" : "Continue"}
+        continueLabel={saving ? "Saving…" : step === TOTAL_STEPS ? "Finish" : "Continue"}
       >
+        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
         {step === 1 && (
           <PersonalInfoStep
             fullName={data.fullName}
@@ -132,7 +193,12 @@ export function Onboarding() {
         {step === 2 && (
           <IncomeSourcesStep
             selected={data.incomeSources}
-            onToggle={(source: IncomeSource) => toggleIncomeSource(source)}
+            onToggle={toggleIncomeSource}
+            options={
+              DATA_MODE === "live"
+                ? categories.filter((category) => category.type === "income").map(({ id, name }) => ({ id, name }))
+                : undefined
+            }
           />
         )}
 
@@ -143,7 +209,12 @@ export function Onboarding() {
         {step === 5 && (
           <SpendingAreasStep
             selected={data.spendingCategories}
-            onToggle={(category: SpendingCategory) => toggleSpendingCategory(category)}
+            onToggle={toggleSpendingCategory}
+            options={
+              DATA_MODE === "live"
+                ? categories.filter((category) => category.type === "expense").map(({ id, name }) => ({ id, name }))
+                : undefined
+            }
           />
         )}
       </OnboardingShell>

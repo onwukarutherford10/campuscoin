@@ -91,3 +91,19 @@ export async function verifyEmail(code: string): Promise<void> {
   });
   setCurrentUser(response.data);
 }
+
+export async function updateLiveProfile(changes: Partial<{
+  name: string;
+  academic_year: string | null;
+  allowance_baseline: string;
+  savings_goal: string;
+  currency: string;
+  timezone: string;
+  income_source_category_ids: string[];
+  spending_category_ids: string[];
+  onboarding_completed: boolean;
+}>): Promise<AuthUser> {
+  const response = await api.request<AuthUser>("/users/me", { method: "PATCH", body: changes });
+  setCurrentUser(response.data);
+  return response.data;
+}

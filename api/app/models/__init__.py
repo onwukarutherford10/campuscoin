@@ -12,7 +12,7 @@ from app.models.transaction import (
     TransactionRevision,
     TransactionType,
 )
-from app.models.user import User, UserRole
+from app.models.user import OnboardingCategoryPreference, OnboardingPreferenceKind, User, UserRole
 
 __all__ = [
     "AuditLog",
@@ -39,4 +39,6 @@ __all__ = [
     "TransactionType",
     "User",
     "UserRole",
+    "OnboardingCategoryPreference",
+    "OnboardingPreferenceKind",
 ]

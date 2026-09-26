@@ -15,6 +15,9 @@ export interface ApiUser {
   role: "student" | "admin";
   is_active: boolean;
   email_verified: boolean;
+  onboarding_completed: boolean;
+  income_source_category_ids: string[];
+  spending_category_ids: string[];
 }
 
 export interface ApiCategory {

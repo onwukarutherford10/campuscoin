@@ -3,6 +3,8 @@ import { getSession } from "../../auth/session";
 import { getProfileSync } from "../../services/profileService";
 import { loadOnboardingData } from "../../utils/storage";
 import { currentPeriodLabel, firstNameOf, timeBasedGreeting } from "../../utils/format";
+import { DATA_MODE } from "../../services/api/config";
+import { useLiveAuth } from "../../auth/useLiveAuth";
 
 interface DashboardHeaderProps {
   onOpenMenu: () => void;
@@ -10,10 +12,11 @@ interface DashboardHeaderProps {
 
 /** Greeting, current period and profile access. Mobile keeps a compact top bar. */
 export function DashboardHeader({ onOpenMenu }: DashboardHeaderProps) {
+  const auth = useLiveAuth();
   const profile = loadOnboardingData();
   const session = getSession();
-  const avatar = getProfileSync().avatar;
-  const displayName = profile.fullName || session?.name || "";
+  const avatar = DATA_MODE === "live" ? null : getProfileSync().avatar;
+  const displayName = DATA_MODE === "live" ? auth.user?.name ?? "" : profile.fullName || session?.name || "";
   const name = firstNameOf(displayName);
   const initials = (displayName || "Campus Coin")
     .split(/\s+/)

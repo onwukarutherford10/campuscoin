@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Numeric, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -15,6 +16,11 @@ from app.models.utc_datetime import UTCDateTime
 class UserRole(StrEnum):
     STUDENT = "student"
     ADMIN = "admin"
+
+
+class OnboardingPreferenceKind(StrEnum):
+    INCOME_SOURCE = "income_source"
+    SPENDING_AREA = "spending_area"
 
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model):
@@ -36,6 +42,30 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.STUDENT)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
     sessions = relationship("AuthSession", back_populates="user", cascade="all, delete-orphan")
     categories = relationship("Category", back_populates="owner")
+    onboarding_preferences = relationship(
+        "OnboardingCategoryPreference", cascade="all, delete-orphan"
+    )
+
+
+class OnboardingCategoryPreference(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
+    __tablename__ = "onboarding_category_preferences"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('income_source', 'spending_area')", name="valid_onboarding_preference_kind"
+        ),
+        UniqueConstraint("user_id", "category_id", "kind", name="uq_onboarding_user_category_kind"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("categories.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+
+    category = relationship("Category")

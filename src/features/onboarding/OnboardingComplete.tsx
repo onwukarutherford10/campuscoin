@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { markOnboardingComplete } from "../../auth/session";
 import { loadOnboardingData, saveOnboardingData } from "../../utils/storage";
+import { DATA_MODE } from "../../services/api/config";
 
 /**
  * Dedicated completion state after onboarding page five.
@@ -18,8 +19,10 @@ export function OnboardingComplete() {
   }, []);
 
   function handleContinue() {
-    saveOnboardingData({ ...loadOnboardingData(), completed: true });
-    markOnboardingComplete();
+    if (DATA_MODE === "mock") {
+      saveOnboardingData({ ...loadOnboardingData(), completed: true });
+      markOnboardingComplete();
+    }
     navigate("/dashboard");
   }
 

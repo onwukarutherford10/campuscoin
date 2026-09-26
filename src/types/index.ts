@@ -29,10 +29,10 @@ export type SpendingCategory =
 export interface OnboardingData {
   fullName: string;
   academicLevel: AcademicLevel | "";
-  incomeSources: IncomeSource[];
+  incomeSources: string[];
   monthlyIncome: number | null;
   savingsGoal: number | null;
-  spendingCategories: SpendingCategory[];
+  spendingCategories: string[];
   completed: boolean;
 }
 

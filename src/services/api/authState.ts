@@ -1,6 +1,6 @@
 import type { ApiUser } from "./dto.ts";
 
-export type AuthUser = Pick<ApiUser, "id" | "email" | "name" | "role" | "email_verified">;
+export type AuthUser = ApiUser;
 export type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
 export interface AuthSnapshot {
   user: AuthUser | null;

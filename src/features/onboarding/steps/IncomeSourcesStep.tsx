@@ -11,24 +11,31 @@ const SOURCES: IncomeSource[] = [
   "Other income",
 ];
 
+export interface OnboardingOption {
+  id: string;
+  name: string;
+}
+
 interface IncomeSourcesStepProps {
-  selected: IncomeSource[];
-  onToggle: (source: IncomeSource) => void;
+  selected: string[];
+  onToggle: (source: string) => void;
+  options?: OnboardingOption[];
 }
 
 /** Onboarding page 2: how the student usually receives money (multi-select). */
-export function IncomeSourcesStep({ selected, onToggle }: IncomeSourcesStepProps) {
+export function IncomeSourcesStep({ selected, onToggle, options }: IncomeSourcesStepProps) {
+  const choices = options ?? SOURCES.map((name) => ({ id: name, name }));
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {SOURCES.map((value) => {
-        const meta = getCategoryMeta(value);
+      {choices.map((option) => {
+        const meta = getCategoryMeta(option.name);
         return (
           <OptionCard
-            key={value}
-            label={value}
+            key={option.id}
+            label={option.name}
             icon={meta.icon}
-            selected={selected.includes(value)}
-            onToggle={() => onToggle(value)}
+            selected={selected.includes(option.id)}
+            onToggle={() => onToggle(option.id)}
           />
         );
       })}

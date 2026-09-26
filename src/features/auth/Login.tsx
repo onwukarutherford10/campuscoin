@@ -46,7 +46,7 @@ function Login() {
       try {
         const user = await login(data.email, data.password);
         toast.success(`Welcome back, ${firstNameOf(user.name)}!`);
-        navigate(user.email_verified ? "/onboarding" : "/otp");
+        navigate(user.email_verified ? (user.onboarding_completed ? "/dashboard" : "/onboarding") : "/otp");
       } catch (error) {
         const result = toServiceError(error);
         setError("root", { message: result.error });
