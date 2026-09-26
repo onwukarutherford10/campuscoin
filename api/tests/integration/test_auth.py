@@ -29,6 +29,36 @@ def test_csrf_is_required_for_state_changes(client):
     assert response.get_json()["error"]["code"] == "csrf_failed"
 
 
+def test_custom_csrf_check_handles_mutations_when_flask_wtf_is_enabled(client):
+    client.application.config["WTF_CSRF_ENABLED"] = True
+    token = csrf(client)
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "csrf@example.com", "password": "correct-horse-123", "name": "CSRF Student"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.status_code == 201
+    assert client.get("/api/v1/users/me").status_code == 200
+
+
+def test_credentialed_cors_allows_configured_frontend_origin(client):
+    origin = "http://localhost:5173"
+    response = client.get("/api/v1/auth/csrf", headers={"Origin": origin})
+    assert response.headers["Access-Control-Allow-Origin"] == origin
+    assert response.headers["Access-Control-Allow-Credentials"] == "true"
+
+    preflight = client.options(
+        "/api/v1/auth/register",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type,X-CSRF-Token",
+        },
+    )
+    assert preflight.status_code == 200
+    assert "X-CSRF-Token" in preflight.headers["Access-Control-Allow-Headers"]
+
+
 def test_registration_profile_and_logout_flow(client, app):
     response = register(client)
     assert response.status_code == 201
