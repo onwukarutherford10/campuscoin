@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, createBrowserRouter, RouterProvider } from "react-router-dom";
 import LandingPage from "./features/landing/LandingPage";
 import Login from "./features/auth/Login";
@@ -16,12 +17,15 @@ import ProfilePage from "./features/profile/ProfilePage";
 import DashboardLayout from "./layouts/DashboardLayout";
 import RequireAuth from "./auth/RequireAuth";
 import { ToastHost } from "./components/ToastHost";
+import { DATA_MODE } from "./services/api/config.ts";
+import { restoreSession } from "./auth/liveAuth.ts";
+import { LiveFeaturePending } from "./components/LiveFeaturePending.tsx";
 
 
 function ProtectedLayout() {
   return (
     <RequireAuth>
-      <DashboardLayout />
+      {DATA_MODE === "live" ? <LiveFeaturePending title="Your dashboard" /> : <DashboardLayout />}
     </RequireAuth>
   );
 }
@@ -29,7 +33,7 @@ function ProtectedLayout() {
 function ProtectedOnboarding() {
   return (
     <RequireAuth>
-      <Onboarding />
+      {DATA_MODE === "live" ? <LiveFeaturePending title="Onboarding" /> : <Onboarding />}
     </RequireAuth>
   );
 }
@@ -37,7 +41,7 @@ function ProtectedOnboarding() {
 function ProtectedOnboardingComplete() {
   return (
     <RequireAuth>
-      <OnboardingComplete />
+      {DATA_MODE === "live" ? <LiveFeaturePending title="Onboarding" /> : <OnboardingComplete />}
     </RequireAuth>
   );
 }
@@ -45,7 +49,7 @@ function ProtectedOnboardingComplete() {
 /** Signup verification screen — requires the session created during signup. */
 function ProtectedOtp() {
   return (
-    <RequireAuth>
+    <RequireAuth allowUnverified>
       <OtpPage />
     </RequireAuth>
   );
@@ -75,6 +79,10 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+  useEffect(() => {
+    if (DATA_MODE === "live") void restoreSession();
+  }, []);
+
   return (
     <>
       <RouterProvider router={router} />

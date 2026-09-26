@@ -9,6 +9,9 @@ import { getProfileSync } from "../../services/profileService";
 import { firstNameOf } from "../../utils/format";
 import { toast } from "../../services/toast";
 import AuthShell from "./AuthShell";
+import { DATA_MODE } from "../../services/api/config.ts";
+import { login } from "../../auth/liveAuth.ts";
+import { toServiceError } from "../../services/api/errors.ts";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email"),
@@ -28,6 +31,7 @@ function Login() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -37,7 +41,18 @@ function Login() {
     },
   });
 
-  function loginUser(data: LoginValues) {
+  async function loginUser(data: LoginValues) {
+    if (DATA_MODE === "live") {
+      try {
+        const user = await login(data.email, data.password);
+        toast.success(`Welcome back, ${firstNameOf(user.name)}!`);
+        navigate(user.email_verified ? "/onboarding" : "/otp");
+      } catch (error) {
+        const result = toServiceError(error);
+        setError("root", { message: result.error });
+      }
+      return;
+    }
     // Prefer the name the student actually set (profile → signup name → email).
     const name =
       getProfileSync().fullName.trim() ||
@@ -101,6 +116,7 @@ function Login() {
           </button>
         </div>
         {errors.password && <p className="mt-1 text-[13px] text-red-600">{errors.password.message}</p>}
+        {errors.root && <p className="mt-3 text-[13px] text-red-600">{errors.root.message}</p>}
 
         <Link
           to="/forgetpassword"

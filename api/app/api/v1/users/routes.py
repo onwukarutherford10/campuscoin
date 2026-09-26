@@ -9,7 +9,7 @@ users = Blueprint("users", __name__)
 
 
 @users.get("/me")
-@auth_required()
+@auth_required(allow_unverified=True)
 def get_profile():
     return success(serialize_user(g.current_user))
 

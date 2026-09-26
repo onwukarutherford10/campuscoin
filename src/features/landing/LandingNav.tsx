@@ -4,6 +4,8 @@ import { Menu, X } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
 import { getSession } from "../../auth/session";
 import { useScrolled } from "./storyHooks";
+import { DATA_MODE } from "../../services/api/config.ts";
+import { useLiveAuth } from "../../auth/useLiveAuth.ts";
 
 const LINKS = [
   { href: "#top", label: "Home" },
@@ -20,7 +22,8 @@ const LINKS = [
 export function LandingNav() {
   const scrolled = useScrolled(24);
   const [open, setOpen] = useState(false);
-  const session = getSession();
+  const liveAuth = useLiveAuth();
+  const session = DATA_MODE === "live" ? liveAuth.user : getSession();
 
   const close = () => setOpen(false);
 

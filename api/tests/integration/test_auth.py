@@ -1,4 +1,6 @@
+import re
 import uuid
+from datetime import timedelta
 
 from werkzeug.security import generate_password_hash
 
@@ -91,6 +93,55 @@ def test_registration_profile_and_logout_flow(client, app):
     assert client.get("/api/v1/users/me").status_code == 401
     with app.app_context():
         assert db.session.query(AuditLog).count() >= 3
+
+
+def test_email_verification_code_is_emailed_and_required(client):
+    client.application.config.update(
+        EMAIL_VERIFICATION_REQUIRED=True,
+        EMAIL_RESEND_COOLDOWN=timedelta(seconds=0),
+    )
+    response = register(client, "verify@example.com")
+    assert response.status_code == 201
+    assert response.get_json()["data"]["email_verified"] is False
+    assert response.get_json()["data"]["verification_sent"] is True
+
+    outbox = client.application.extensions["mail_outbox"]
+    assert outbox[-1]["to"] == "verify@example.com"
+    code = re.search(r"\b(\d{6})\b", outbox[-1]["body"]).group(1)
+
+    blocked = client.get("/api/v1/categories")
+    assert blocked.status_code == 403
+    assert blocked.get_json()["error"]["code"] == "email_verification_required"
+    assert client.get("/api/v1/users/me").status_code == 200
+
+    wrong = post(client, "/api/v1/auth/email/verify", {"code": "000000"})
+    assert wrong.status_code == 400
+    verified = post(client, "/api/v1/auth/email/verify", {"code": code})
+    assert verified.status_code == 200
+    assert verified.get_json()["data"]["email_verified"] is True
+    assert client.get("/api/v1/categories").status_code == 200
+
+
+def test_email_verification_resend_invalidates_previous_code(client, monkeypatch):
+    codes = iter([123456, 654321])
+    monkeypatch.setattr(
+        "app.services.email.verification.secrets.randbelow", lambda _limit: next(codes)
+    )
+    client.application.config.update(
+        EMAIL_VERIFICATION_REQUIRED=True,
+        EMAIL_RESEND_COOLDOWN=timedelta(seconds=0),
+    )
+    register(client, "resend@example.com")
+    first = re.search(
+        r"\b(\d{6})\b", client.application.extensions["mail_outbox"][-1]["body"]
+    ).group(1)
+    resent = post(client, "/api/v1/auth/email/resend")
+    assert resent.status_code == 200
+    second = re.search(
+        r"\b(\d{6})\b", client.application.extensions["mail_outbox"][-1]["body"]
+    ).group(1)
+    assert post(client, "/api/v1/auth/email/verify", {"code": first}).status_code == 400
+    assert post(client, "/api/v1/auth/email/verify", {"code": second}).status_code == 200
 
 
 def test_login_rotation_and_reuse_rejection(client):

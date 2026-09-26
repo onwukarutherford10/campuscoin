@@ -14,6 +14,7 @@ export interface ApiUser {
   ai_consent: boolean;
   role: "student" | "admin";
   is_active: boolean;
+  email_verified: boolean;
 }
 
 export interface ApiCategory {

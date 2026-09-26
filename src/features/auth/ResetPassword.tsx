@@ -1,15 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { z } from "zod";
 import { toast } from "../../services/toast";
 import AuthShell from "./AuthShell";
+import { resetPassword } from "../../auth/liveAuth.ts";
+import { toServiceError } from "../../services/api/errors.ts";
 
 const resetPasswordSchema = z
   .object({
     newPassword: z
       .string()
-      .min(8, "Password must be at least 8 characters")
+      .min(10, "Password must be at least 10 characters")
       .regex(/[A-Z]/, "Must contain an uppercase letter")
       .regex(/[0-9!@#$%^&*]/, "Must contain a number or symbol"),
     confirmPassword: z.string(),
@@ -28,6 +30,8 @@ const labelClass = "block text-[13px] font-medium text-gray-700";
 /** Step two of recovery: choose a new password and return to login. */
 function ResetPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") ?? "";
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -35,13 +39,13 @@ function ResetPassword() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const hasMinLength = newPassword.length >= 8;
+  const hasMinLength = newPassword.length >= 10;
   const hasUppercase = /[A-Z]/.test(newPassword);
   const hasNumberOrSymbol = /[0-9!@#$%^&*]/.test(newPassword);
   const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
   const showRequirements = newPassword.length > 0;
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const result = resetPasswordSchema.safeParse({ newPassword, confirmPassword });
     if (!result.success) {
@@ -53,17 +57,27 @@ function ResetPassword() {
       return;
     }
 
+    if (!token) {
+      setErrors({ form: "This reset link is missing its token. Request a new link." });
+      return;
+    }
     setSubmitting(true);
-    window.setTimeout(() => {
+    try {
+      await resetPassword(token, result.data.newPassword);
       toast.success("Password updated. Sign in with your new password.");
-      navigate("/login");
-    }, 600);
+      navigate("/login", { replace: true });
+    } catch (requestError) {
+      const failure = toServiceError(requestError);
+      setErrors({ ...failure.errors, form: failure.error });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <AuthShell
       title="Choose a new password"
-      subtitle="Make it something you'll remember: at least 8 characters with an uppercase letter and a number."
+      subtitle="Make it something you'll remember: at least 10 characters with an uppercase letter and a number."
       backTo="/forgetpassword"
       backLabel="Back"
       art={{ src: "/art/auth-art.jpg", alt: "Student using a smartphone on campus" }}
@@ -126,11 +140,12 @@ function ResetPassword() {
         {errors.confirmPassword && (
           <p className="mt-1 text-[13px] text-red-600">{errors.confirmPassword}</p>
         )}
+        {errors.form && <p className="mt-3 text-[13px] text-red-600">{errors.form}</p>}
 
         {showRequirements && (
           <ul className="mt-3 space-y-1 text-[12px]">
             {[
-              { ok: hasMinLength, label: "At least 8 characters" },
+              { ok: hasMinLength, label: "At least 10 characters" },
               { ok: hasUppercase, label: "One uppercase letter" },
               { ok: hasNumberOrSymbol, label: "One number or symbol" },
               { ok: passwordsMatch, label: "Passwords match" },

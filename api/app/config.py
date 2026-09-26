@@ -40,6 +40,16 @@ class BaseConfig:
     ACCESS_TOKEN_TTL = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MINUTES", "15")))
     REFRESH_TOKEN_TTL = timedelta(days=int(os.getenv("REFRESH_TOKEN_DAYS", "30")))
     PASSWORD_RESET_TTL = timedelta(minutes=int(os.getenv("PASSWORD_RESET_MINUTES", "30")))
+    EMAIL_VERIFICATION_REQUIRED = True
+    EMAIL_CODE_TTL = timedelta(minutes=int(os.getenv("EMAIL_CODE_MINUTES", "10")))
+    EMAIL_RESEND_COOLDOWN = timedelta(seconds=int(os.getenv("EMAIL_RESEND_SECONDS", "30")))
+    EMAIL_CODE_MAX_ATTEMPTS = int(os.getenv("EMAIL_CODE_MAX_ATTEMPTS", "5"))
+    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+    SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD", "")
+    SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USERNAME)
+    FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
     ACCESS_COOKIE_NAME = "campuscoin_access"
     REFRESH_COOKIE_NAME = "campuscoin_refresh"
     CSRF_COOKIE_NAME = "campuscoin_csrf"
@@ -84,6 +94,7 @@ class DevelopmentConfig(BaseConfig):
 
 class TestingConfig(BaseConfig):
     TESTING = True
+    EMAIL_VERIFICATION_REQUIRED = False
     SECRET_KEY = "testing-secret-key-is-at-least-32-characters"
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = os.getenv("TEST_DATABASE_URL", "sqlite+pysqlite:///:memory:")
@@ -101,6 +112,12 @@ class ProductionConfig(BaseConfig):
             raise RuntimeError("Production SECRET_KEY must be at least 32 characters")
         if make_url(config["SQLALCHEMY_DATABASE_URI"]).get_backend_name() != "mysql":
             raise RuntimeError("Production requires MySQL")
+        if (
+            not config["SMTP_USERNAME"]
+            or not config["SMTP_APP_PASSWORD"]
+            or not config["SMTP_FROM"]
+        ):
+            raise RuntimeError("Production Gmail SMTP credentials must be configured")
 
 
 CONFIGS = {

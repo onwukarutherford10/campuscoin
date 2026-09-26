@@ -15,6 +15,7 @@ def serialize_user(user: User, *, include_email: bool = True) -> dict:
         "ai_consent": user.ai_consent,
         "role": user.role,
         "is_active": user.is_active,
+        "email_verified": user.email_verified_at is not None,
     }
     if include_email:
         data["email"] = user.email

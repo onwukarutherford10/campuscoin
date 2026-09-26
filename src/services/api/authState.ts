@@ -1,20 +1,30 @@
 import type { ApiUser } from "./dto.ts";
 
-type Listener = (user: ApiUser | null) => void;
+export type AuthUser = Pick<ApiUser, "id" | "email" | "name" | "role" | "email_verified">;
+export type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
+export interface AuthSnapshot {
+  user: AuthUser | null;
+  status: AuthStatus;
+}
+type Listener = () => void;
 
-let currentUser: ApiUser | null = null;
+let snapshot: AuthSnapshot = { user: null, status: "loading" };
 const listeners = new Set<Listener>();
 
-export function getCurrentUser(): ApiUser | null {
-  return currentUser;
+export function getAuthSnapshot(): AuthSnapshot {
+  return snapshot;
 }
 
-export function setCurrentUser(user: ApiUser | null): void {
-  currentUser = user;
-  listeners.forEach((listener) => listener(user));
+export function setAuthSnapshot(next: AuthSnapshot): void {
+  snapshot = next;
+  listeners.forEach((listener) => listener());
 }
 
-export function subscribeToCurrentUser(listener: Listener): () => void {
+export function setCurrentUser(user: AuthUser | null): void {
+  setAuthSnapshot({ user, status: user ? "authenticated" : "anonymous" });
+}
+
+export function subscribeToAuth(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }

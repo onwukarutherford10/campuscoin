@@ -131,7 +131,21 @@ preview/confirm under `/api/v1/transactions/imports`; invalid rows have a downlo
 All application datetimes are normalized to UTC before storage in MySQL `DATETIME(6)` and
 returned with `+00:00`. Monetary values use `NUMERIC`/`DECIMAL` and Python `Decimal`; APIs expose
 two-decimal strings. In tests, password reset tokens appear in response metadata; production
-never exposes them. Email delivery is added in a later phase.
+never exposes them.
+
+### Gmail email delivery
+
+Account verification uses a six-digit code sent after registration. Password recovery sends a
+tokenized link back to the frontend. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, `SMTP_FROM`,
+and `FRONTEND_BASE_URL`; production startup rejects missing mail credentials. Use a dedicated
+Gmail or Google Workspace account with 2-Step Verification and a Gmail app password. Do not put
+the normal Google account password in the environment. The default connection is
+`smtp.gmail.com:465` over TLS.
+
+Authenticated but unverified students can call `POST /api/v1/auth/email/resend` and
+`POST /api/v1/auth/email/verify`. Other protected student endpoints return
+`email_verification_required` until verification succeeds. Existing accounts are marked verified
+when the verification migration is applied.
 
 ## Budgets, dashboard, tips, reports, and exports (Phase 4)
 

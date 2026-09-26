@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin, VersionMixin
+from app.models.utc_datetime import UTCDateTime
 
 
 class UserRole(StrEnum):
@@ -33,6 +35,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model):
     ai_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.STUDENT)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
     sessions = relationship("AuthSession", back_populates="user", cascade="all, delete-orphan")
     categories = relationship("Category", back_populates="owner")
