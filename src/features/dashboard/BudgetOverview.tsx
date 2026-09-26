@@ -7,9 +7,9 @@ interface BudgetOverviewProps {
   onSetBudget: () => void;
 }
 
-function statusOf(percentage: number): { label: string; className: string } {
-  if (percentage > 100) return { label: "Exceeded", className: "text-red-600" };
-  if (percentage >= 80) return { label: "Near limit", className: "text-amber-600" };
+function statusOf(apiStatus: Budget["status"], percentage: number): { label: string; className: string } {
+  if (apiStatus === "exceeded" || (!apiStatus && percentage > 100)) return { label: "Exceeded", className: "text-red-600" };
+  if (apiStatus === "near_limit" || (!apiStatus && percentage >= 80)) return { label: "Near limit", className: "text-amber-600" };
   return { label: "On track", className: "text-brand-dark" };
 }
 
@@ -29,10 +29,10 @@ export function BudgetOverview({ budgets, onSetBudget }: BudgetOverviewProps) {
   return (
     <ul className="space-y-5">
       {budgets.map((budget) => {
-        const percentage = budget.limit === 0 ? 0 : (budget.spent / budget.limit) * 100;
-        const remaining = budget.limit - budget.spent;
-        const status = statusOf(percentage);
-        const barColor = percentage > 100 ? "bg-red-500" : percentage >= 80 ? "bg-amber-500" : "bg-brand";
+        const percentage = budget.percentage ?? (budget.limit === 0 ? 0 : (budget.spent / budget.limit) * 100);
+        const remaining = budget.remaining ?? budget.limit - budget.spent;
+        const status = statusOf(budget.status, percentage);
+        const barColor = budget.status === "exceeded" || (!budget.status && percentage > 100) ? "bg-red-500" : budget.status === "near_limit" || (!budget.status && percentage >= 80) ? "bg-amber-500" : "bg-brand";
 
         return (
           <li key={budget.id}>

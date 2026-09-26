@@ -5,6 +5,12 @@ import { getAuthSnapshot, setAuthSnapshot, setCurrentUser, type AuthUser } from 
 const LOGOUT_PENDING_KEY = "campuscoin.logoutPending";
 let restorePromise: Promise<void> | null = null;
 
+type AuthSummary = Pick<AuthUser, "id" | "email" | "name" | "role" | "email_verified">;
+
+async function fetchCurrentUser(): Promise<AuthUser> {
+  return (await api.request<AuthUser>("/users/me")).data;
+}
+
 function clearLegacyUserData(): void {
   const keys: string[] = [];
   for (let index = 0; index < localStorage.length; index += 1) {
@@ -24,8 +30,7 @@ export function restoreSession(): Promise<void> {
   setAuthSnapshot({ user: null, status: "loading" });
   restorePromise = (async () => {
     try {
-      const response = await api.request<AuthUser>("/users/me");
-      setCurrentUser(response.data);
+      setCurrentUser(await fetchCurrentUser());
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         setCurrentUser(null);
@@ -38,23 +43,25 @@ export function restoreSession(): Promise<void> {
 }
 
 export async function login(email: string, password: string): Promise<AuthUser> {
-  const response = await api.request<AuthUser>("/auth/login", {
+  await api.request<AuthSummary>("/auth/login", {
     method: "POST", body: { email, password }, authenticated: false,
   });
   clearLegacyUserData();
   sessionStorage.removeItem(LOGOUT_PENDING_KEY);
-  setCurrentUser(response.data);
-  return response.data;
+  const user = await fetchCurrentUser();
+  setCurrentUser(user);
+  return user;
 }
 
 export async function register(name: string, email: string, password: string): Promise<AuthUser & { verification_sent: boolean }> {
-  const response = await api.request<AuthUser & { verification_sent: boolean }>("/auth/register", {
+  const response = await api.request<AuthSummary & { verification_sent: boolean }>("/auth/register", {
     method: "POST", body: { name, email, password }, authenticated: false,
   });
   clearLegacyUserData();
   sessionStorage.removeItem(LOGOUT_PENDING_KEY);
-  setCurrentUser(response.data);
-  return response.data;
+  const user = await fetchCurrentUser();
+  setCurrentUser(user);
+  return { ...user, verification_sent: response.data.verification_sent };
 }
 
 export async function logout(): Promise<void> {
@@ -86,10 +93,10 @@ export async function resendEmailCode(): Promise<void> {
 }
 
 export async function verifyEmail(code: string): Promise<void> {
-  const response = await api.request<AuthUser>("/auth/email/verify", {
+  await api.request<AuthSummary>("/auth/email/verify", {
     method: "POST", body: { code },
   });
-  setCurrentUser(response.data);
+  setCurrentUser(await fetchCurrentUser());
 }
 
 export async function updateLiveProfile(changes: Partial<{

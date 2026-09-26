@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getDashboardData } from "../services/dashboardApi";
 import { loadOnboardingData } from "../utils/storage";
 import type { DashboardData } from "../types";
+import { DATA_MODE } from "../services/api/config";
 
 interface DashboardState {
   data: DashboardData | null;
@@ -33,7 +34,7 @@ export function useDashboardData(): DashboardState {
   useEffect(() => {
     let active = true;
 
-    getDashboardData(loadOnboardingData())
+    getDashboardData(DATA_MODE === "live" ? null : loadOnboardingData())
       .then((result) => {
         if (!active) return;
         setState({ data: result, loading: false, error: false });

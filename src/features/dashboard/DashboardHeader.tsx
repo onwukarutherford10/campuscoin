@@ -8,15 +8,16 @@ import { useLiveAuth } from "../../auth/useLiveAuth";
 
 interface DashboardHeaderProps {
   onOpenMenu: () => void;
+  unreadCount?: number;
 }
 
 /** Greeting, current period and profile access. Mobile keeps a compact top bar. */
-export function DashboardHeader({ onOpenMenu }: DashboardHeaderProps) {
+export function DashboardHeader({ onOpenMenu, unreadCount = 0 }: DashboardHeaderProps) {
   const auth = useLiveAuth();
-  const profile = loadOnboardingData();
+  const profile = DATA_MODE === "mock" ? loadOnboardingData() : null;
   const session = getSession();
   const avatar = DATA_MODE === "live" ? null : getProfileSync().avatar;
-  const displayName = DATA_MODE === "live" ? auth.user?.name ?? "" : profile.fullName || session?.name || "";
+  const displayName = DATA_MODE === "live" ? auth.user?.name ?? "" : profile?.fullName || session?.name || "";
   const name = firstNameOf(displayName);
   const initials = (displayName || "Campus Coin")
     .split(/\s+/)
@@ -63,10 +64,16 @@ export function DashboardHeader({ onOpenMenu }: DashboardHeaderProps) {
           </span>
           <button
             type="button"
-            aria-label="Notifications"
-            className="hidden h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-gray-600 transition hover:bg-gray-50 lg:flex"
+            aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+            onClick={() => document.getElementById("dashboard-alerts")?.scrollIntoView({ behavior: "smooth" })}
+            className="relative hidden h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-gray-600 transition hover:bg-gray-50 lg:flex"
           >
             <Bell size={17} />
+            {unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
           <span className="hidden h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-soft text-[13px] font-semibold text-brand-dark lg:flex">
             {monogram}

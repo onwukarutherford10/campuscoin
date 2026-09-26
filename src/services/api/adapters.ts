@@ -31,9 +31,17 @@ export function categoryFromApi(value: ApiCategory): Category {
 export function budgetFromApi(value: ApiBudget): Budget {
   return {
     id: value.id,
+    categoryId: value.category_id,
     category: value.category_name,
     limit: moneyToNumber(value.amount),
     spent: moneyToNumber(value.spent),
+    remaining: moneyToNumber(value.remaining),
+    percentage: Number(value.percent),
+    status: value.status,
+    year: value.year,
+    month: value.month,
+    nearLimitPercent: value.near_limit_percent,
+    version: value.version,
   };
 }
 

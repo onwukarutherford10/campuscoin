@@ -131,9 +131,17 @@ export interface SpendingOverview {
 
 export interface Budget {
   id: string;
+  categoryId?: string;
   category: string;
   limit: number;
   spent: number;
+  remaining?: number;
+  percentage?: number;
+  status?: "within_limit" | "near_limit" | "exceeded";
+  year?: number;
+  month?: number;
+  nearLimitPercent?: number;
+  version?: number;
 }
 
 export interface SavingTip {
@@ -148,6 +156,14 @@ export interface TrendPoint {
   expenses: number;
 }
 
+export interface DashboardAlert {
+  id: string;
+  kind: string;
+  message: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
 export interface DashboardData {
   summary: FinancialSummary;
   transactions: Transaction[];
@@ -157,6 +173,7 @@ export interface DashboardData {
   /** One plain-language key insight; the full analysis lives on Reports. */
   insight: string | null;
   trend: TrendPoint[];
+  alerts: DashboardAlert[];
 }
 
 /* ------------------------------------------------------------------ *

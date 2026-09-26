@@ -23,15 +23,15 @@ const TOTAL_STEPS = 5;
 function initialData(): OnboardingData {
   if (DATA_MODE === "mock") return loadOnboardingData();
   const user = getAuthSnapshot().user;
-  if (!user) return { ...emptyOnboardingData };
+  if (!user) return { ...emptyOnboardingData, incomeSources: [], spendingCategories: [] };
   return {
-    fullName: user.name,
+    fullName: user.name ?? "",
     academicLevel: (user.academic_year as AcademicLevel | null) ?? "",
-    incomeSources: user.income_source_category_ids,
-    monthlyIncome: Number(user.allowance_baseline),
+    incomeSources: Array.isArray(user.income_source_category_ids) ? user.income_source_category_ids : [],
+    monthlyIncome: Number(user.allowance_baseline) || null,
     savingsGoal: Number(user.savings_goal) || null,
-    spendingCategories: user.spending_category_ids,
-    completed: user.onboarding_completed,
+    spendingCategories: Array.isArray(user.spending_category_ids) ? user.spending_category_ids : [],
+    completed: Boolean(user.onboarding_completed),
   };
 }
 

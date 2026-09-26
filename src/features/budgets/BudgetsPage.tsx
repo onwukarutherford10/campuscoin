@@ -9,6 +9,7 @@ import { ListSkeleton } from "../../components/Skeletons";
 import { toast } from "../../services/toast";
 import BudgetRow from "./BudgetRow";
 import BudgetFormModal from "./BudgetFormModal";
+import { currentBudgetPeriodLabel } from "../../services/budgetService";
 
 interface LayoutContext {
   openMenu: () => void;
@@ -36,7 +37,7 @@ export function BudgetsPage() {
     }
   }
 
-  async function handleSave(input: { id?: string; category: string; limit: number }): Promise<ServiceResult<Budget>> {
+  async function handleSave(input: { id?: string; category: string; categoryId?: string; limit: number }): Promise<ServiceResult<Budget>> {
     const wasEdit = Boolean(input.id);
     const result = await save(input);
     if (result.ok) toast.success(wasEdit ? "Budget updated." : "Budget set.");
@@ -50,7 +51,8 @@ export function BudgetsPage() {
         subtitle="Monthly limits per spending category."
         onOpenMenu={openMenu}
         actions={
-          <>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-[13px] text-gray-500 sm:inline">{currentBudgetPeriodLabel()}</span>
             <button
               type="button"
               onClick={() => setForm({ mode: "add" })}
@@ -58,7 +60,7 @@ export function BudgetsPage() {
             >
               Set a budget
             </button>
-          </>
+          </div>
         }
       />
 
@@ -84,7 +86,7 @@ export function BudgetsPage() {
       )}
 
       {!error && items.length > 0 && (
-        <Card title="Monthly budgets" action={<span className="text-[13px] text-gray-400">{items.length} categories</span>}>
+        <Card title={`${currentBudgetPeriodLabel()} budgets`} action={<span className="text-[13px] text-gray-400">{items.length} categories</span>}>
           <ul className="divide-y divide-line">
             {items.map((budget) => (
               <BudgetRow

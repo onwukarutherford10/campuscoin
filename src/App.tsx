@@ -21,7 +21,6 @@ import { DATA_MODE } from "./services/api/config.ts";
 import { restoreSession } from "./auth/liveAuth.ts";
 import { LiveFeaturePending } from "./components/LiveFeaturePending.tsx";
 import { useLiveAuth } from "./auth/useLiveAuth.ts";
-import { LiveDashboard } from "./features/dashboard/LiveDashboard.tsx";
 import { LiveProfilePage } from "./features/profile/LiveProfilePage.tsx";
 
 
@@ -81,9 +80,9 @@ const router = createBrowserRouter([
   {
     element: <ProtectedLayout />,
     children: [
-      { path: "/dashboard", element: DATA_MODE === "live" ? <LiveDashboard /> : <Dashboard /> },
+      { path: "/dashboard", element: <Dashboard /> },
       { path: "/transactions", element: <TransactionsPage /> },
-      { path: "/budgets", element: DATA_MODE === "live" ? <LiveFeaturePending title="Budgets" /> : <BudgetsPage /> },
+      { path: "/budgets", element: <BudgetsPage /> },
       { path: "/categories", element: <CategoriesPage /> },
       { path: "/reports", element: DATA_MODE === "live" ? <LiveFeaturePending title="Reports" /> : <ReportsPage /> },
       { path: "/settings", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
