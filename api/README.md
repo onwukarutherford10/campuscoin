@@ -133,6 +133,33 @@ returned with `+00:00`. Monetary values use `NUMERIC`/`DECIMAL` and Python `Deci
 two-decimal strings. In tests, password reset tokens appear in response metadata; production
 never exposes them. Email delivery is added in a later phase.
 
+## Budgets, dashboard, tips, reports, and exports (Phase 4)
+
+Monthly expense budgets live at `GET/POST /api/v1/budgets` and
+`GET/DELETE /api/v1/budgets/{id}`. A POST with the same category/year/month updates the
+existing budget. The amount must be positive with two decimal places; `near_limit_percent`
+defaults to 80. Consumption includes only non-deleted expense transactions within the
+student's timezone-local calendar month. Crossing a threshold creates an idempotent alert.
+List, read, and dismiss alerts at `/api/v1/notifications` and
+`/api/v1/notifications/{id}/read|dismiss`.
+
+`GET /api/v1/dashboard` consolidates month-to-date balance, income, expenses, top
+categories, budget progress, deterministic tips, alerts, and recent transactions.
+`GET /api/v1/tips` lists budget, previous-month trend, and recurring-charge suggestions;
+`POST /api/v1/tips/{key}/pin|bookmark|dismiss` saves per-student preferences. Estimated
+savings are advisory and use exact decimal arithmetic, not AI.
+
+`GET /api/v1/reports` accepts `period=daily|weekly|monthly|six_months|range|category|income_source`.
+Monthly and six-month periods accept `year` and `month`; range, category, and income-source
+periods require timezone-aware ISO-8601 `start` and `end`. `category_id` optionally narrows
+any period. Totals exclude soft-deleted transactions; `income_source` includes income only.
+`POST /api/v1/reports/exports` accepts the same filters plus `format=pdf|png`. Reports
+with at most `REPORT_SYNC_TRANSACTION_LIMIT` transactions (default 500) return the file
+directly. Larger exports return a `202` database job. Run
+`flask --app wsgi:app process-report-exports` manually or on a scheduler, poll
+`GET /api/v1/jobs/{id}`, then follow its `download_url`. Export contents are user-scoped.
+`GET /api/v1/admin/usage` returns aggregate counts only.
+
 ## Backup and restore
 
 Back up the local development database before migrations. Restore only to the intended local

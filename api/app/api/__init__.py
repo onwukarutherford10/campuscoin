@@ -12,8 +12,12 @@ def api_index():
 
 from app.api.v1.admin.routes import admin  # noqa: E402
 from app.api.v1.auth.routes import auth  # noqa: E402
+from app.api.v1.budgets.routes import budgets  # noqa: E402
 from app.api.v1.categories.routes import categories  # noqa: E402
 from app.api.v1.jobs.routes import jobs  # noqa: E402
+from app.api.v1.notifications.routes import notifications  # noqa: E402
+from app.api.v1.reports.routes import dashboard, reports  # noqa: E402
+from app.api.v1.tips.routes import tips  # noqa: E402
 from app.api.v1.transactions.imports import imports  # noqa: E402
 from app.api.v1.transactions.recurring import recurring  # noqa: E402
 from app.api.v1.transactions.routes import transactions  # noqa: E402
@@ -23,6 +27,11 @@ api_v1.register_blueprint(auth, url_prefix="/auth")
 api_v1.register_blueprint(users, url_prefix="/users")
 api_v1.register_blueprint(categories, url_prefix="/categories")
 api_v1.register_blueprint(jobs, url_prefix="/jobs")
+api_v1.register_blueprint(budgets, url_prefix="/budgets")
+api_v1.register_blueprint(tips, url_prefix="/tips")
+api_v1.register_blueprint(notifications, url_prefix="/notifications")
+api_v1.register_blueprint(reports, url_prefix="/reports")
+api_v1.register_blueprint(dashboard, url_prefix="/dashboard")
 api_v1.register_blueprint(transactions, url_prefix="/transactions")
 api_v1.register_blueprint(imports, url_prefix="/transactions/imports")
 api_v1.register_blueprint(recurring, url_prefix="/recurring-transactions")
