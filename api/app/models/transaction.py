@@ -8,7 +8,6 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -21,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin, VersionMixin
+from app.models.utc_datetime import UTCDateTime, UTCNow
 
 
 class TransactionType(StrEnum):
@@ -54,14 +54,14 @@ class Transaction(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model):
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     merchant: Mapped[str | None] = mapped_column(String(160))
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), index=True)
     source: Mapped[str] = mapped_column(String(30), nullable=False, default="manual")
     import_fingerprint: Mapped[str | None] = mapped_column(String(64), index=True)
     recurring_rule_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("recurring_rules.id", ondelete="SET NULL"), index=True
     )
-    scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scheduled_for: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
     category = relationship("Category")
     revisions = relationship(
@@ -90,7 +90,7 @@ class TransactionRevision(UUIDPrimaryKeyMixin, db.Model):
     action: Mapped[str] = mapped_column(String(20), nullable=False)
     snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=db.func.now()
+        UTCDateTime(), nullable=False, server_default=UTCNow()
     )
 
     transaction = relationship("Transaction", back_populates="revisions")
@@ -108,8 +108,8 @@ class TransactionActivity(UUIDPrimaryKeyMixin, db.Model):
     transaction_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    last_viewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    last_edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_viewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    last_edited_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
 
 class CSVImport(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
@@ -127,7 +127,7 @@ class CSVImport(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     duplicate_count: Mapped[int] = mapped_column(Integer, nullable=False)
     error_count: Mapped[int] = mapped_column(Integer, nullable=False)
     error_csv: Mapped[str | None] = mapped_column(Text)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    confirmed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     imported_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     job_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"))

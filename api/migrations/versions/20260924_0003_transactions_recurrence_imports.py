@@ -3,6 +3,19 @@
 import sqlalchemy as sa
 from alembic import op
 
+from app.models.utc_datetime import UTCDateTime
+
+
+def create_table(name, *columns):
+    op.create_table(
+        name,
+        *columns,
+        mysql_engine="InnoDB",
+        mysql_charset="utf8mb4",
+        mysql_collate="utf8mb4_unicode_ci",
+    )
+
+
 revision = "20260924_0003"
 down_revision = "20260924_0002"
 branch_labels = None
@@ -13,14 +26,14 @@ def _timestamps():
     return [
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            UTCDateTime(),
+            server_default=sa.text("CURRENT_TIMESTAMP(6)"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            UTCDateTime(),
+            server_default=sa.text("CURRENT_TIMESTAMP(6)"),
             nullable=False,
         ),
     ]
@@ -34,7 +47,7 @@ def upgrade():
         )
         batch_op.create_index("ix_jobs_owner_id", ["owner_id"])
 
-    op.create_table(
+    create_table(
         "recurring_rules",
         sa.Column("owner_id", sa.Uuid(), nullable=False),
         sa.Column("category_id", sa.Uuid(), nullable=False),
@@ -44,8 +57,8 @@ def upgrade():
         sa.Column("merchant", sa.String(160)),
         sa.Column("frequency", sa.String(20), nullable=False),
         sa.Column("interval", sa.Integer(), nullable=False),
-        sa.Column("next_due_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("ends_at", sa.DateTime(timezone=True)),
+        sa.Column("next_due_at", UTCDateTime(), nullable=False),
+        sa.Column("ends_at", UTCDateTime()),
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         *_timestamps(),
@@ -67,7 +80,7 @@ def upgrade():
     op.create_index(op.f("ix_recurring_rules_owner_id"), "recurring_rules", ["owner_id"])
     op.create_index(op.f("ix_recurring_rules_next_due_at"), "recurring_rules", ["next_due_at"])
 
-    op.create_table(
+    create_table(
         "transactions",
         sa.Column("owner_id", sa.Uuid(), nullable=False),
         sa.Column("category_id", sa.Uuid(), nullable=False),
@@ -75,12 +88,12 @@ def upgrade():
         sa.Column("amount", sa.Numeric(14, 2), nullable=False),
         sa.Column("description", sa.String(255), nullable=False),
         sa.Column("merchant", sa.String(160)),
-        sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("deleted_at", sa.DateTime(timezone=True)),
+        sa.Column("occurred_at", UTCDateTime(), nullable=False),
+        sa.Column("deleted_at", UTCDateTime()),
         sa.Column("source", sa.String(30), nullable=False),
         sa.Column("import_fingerprint", sa.String(64)),
         sa.Column("recurring_rule_id", sa.Uuid()),
-        sa.Column("scheduled_for", sa.DateTime(timezone=True)),
+        sa.Column("scheduled_for", UTCDateTime()),
         sa.Column("id", sa.Uuid(), nullable=False),
         *_timestamps(),
         sa.Column("version", sa.Integer(), nullable=False),
@@ -119,7 +132,7 @@ def upgrade():
         op.create_index(op.f(f"ix_transactions_{column}"), "transactions", [column])
     op.create_index("ix_transactions_owner_occurred", "transactions", ["owner_id", "occurred_at"])
 
-    op.create_table(
+    create_table(
         "transaction_revisions",
         sa.Column("transaction_id", sa.Uuid(), nullable=False),
         sa.Column("actor_id", sa.Uuid(), nullable=False),
@@ -128,8 +141,8 @@ def upgrade():
         sa.Column("snapshot", sa.JSON(), nullable=False),
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            UTCDateTime(),
+            server_default=sa.text("CURRENT_TIMESTAMP(6)"),
             nullable=False,
         ),
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -156,12 +169,12 @@ def upgrade():
         ["transaction_id"],
     )
 
-    op.create_table(
+    create_table(
         "transaction_activities",
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("transaction_id", sa.Uuid(), nullable=False),
-        sa.Column("last_viewed_at", sa.DateTime(timezone=True)),
-        sa.Column("last_edited_at", sa.DateTime(timezone=True)),
+        sa.Column("last_viewed_at", UTCDateTime()),
+        sa.Column("last_edited_at", UTCDateTime()),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.ForeignKeyConstraint(
             ["transaction_id"],
@@ -187,7 +200,7 @@ def upgrade():
         op.f("ix_transaction_activities_user_id"), "transaction_activities", ["user_id"]
     )
 
-    op.create_table(
+    create_table(
         "csv_imports",
         sa.Column("owner_id", sa.Uuid(), nullable=False),
         sa.Column("status", sa.String(20), nullable=False),
@@ -199,8 +212,8 @@ def upgrade():
         sa.Column("duplicate_count", sa.Integer(), nullable=False),
         sa.Column("error_count", sa.Integer(), nullable=False),
         sa.Column("error_csv", sa.Text()),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("confirmed_at", sa.DateTime(timezone=True)),
+        sa.Column("expires_at", UTCDateTime(), nullable=False),
+        sa.Column("confirmed_at", UTCDateTime()),
         sa.Column("imported_count", sa.Integer(), nullable=False),
         sa.Column("job_id", sa.Uuid()),
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -226,6 +239,6 @@ def downgrade():
     op.drop_table("transactions")
     op.drop_table("recurring_rules")
     with op.batch_alter_table("jobs") as batch_op:
-        batch_op.drop_index("ix_jobs_owner_id")
         batch_op.drop_constraint("fk_jobs_owner_id_users", type_="foreignkey")
+        batch_op.drop_index("ix_jobs_owner_id")
         batch_op.drop_column("owner_id")

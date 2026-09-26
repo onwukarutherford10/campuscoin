@@ -42,7 +42,10 @@ class TransactionRepository:
         if query:
             pattern = f"%{query.strip()}%"
             conditions.append(
-                or_(Transaction.description.ilike(pattern), Transaction.merchant.ilike(pattern))
+                or_(
+                    func.lower(Transaction.description).like(pattern.lower()),
+                    func.lower(Transaction.merchant).like(pattern.lower()),
+                )
             )
         total = db.session.scalar(select(func.count()).select_from(Transaction).where(*conditions))
         statement = (

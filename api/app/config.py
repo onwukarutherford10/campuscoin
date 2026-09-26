@@ -4,6 +4,8 @@ import os
 from datetime import timedelta
 from typing import Any
 
+from sqlalchemy.engine import make_url
+
 DEFAULT_SECRET_KEY = "development-only-change-me"
 
 
@@ -14,10 +16,15 @@ def _as_bool(value: str | bool) -> bool:
 class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY", DEFAULT_SECRET_KEY)
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "postgresql+psycopg://campuscoin:campuscoin@localhost:5432/campuscoin"
+        "DATABASE_URL",
+        "mysql+pymysql://campuscoin_app:password@localhost:3306/campuscoin?charset=utf8mb4",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+        "connect_args": {"connect_timeout": 10, "read_timeout": 30, "write_timeout": 30},
+    }
     FRONTEND_ORIGINS = [
         origin.strip()
         for origin in os.getenv("FRONTEND_ORIGINS", "http://localhost:5173").split(",")
@@ -47,6 +54,25 @@ class BaseConfig:
     def validate(cls, config: dict[str, Any]) -> None:
         if not config["SQLALCHEMY_DATABASE_URI"]:
             raise RuntimeError("DATABASE_URL must be configured")
+        try:
+            url = make_url(config["SQLALCHEMY_DATABASE_URI"])
+        except Exception as exc:
+            raise RuntimeError("DATABASE_URL is invalid") from exc
+        if url.get_backend_name() != "mysql" and (
+            not config.get("TESTING") or url.get_backend_name() != "sqlite"
+        ):
+            raise RuntimeError("MySQL is required outside fast tests")
+        if url.get_backend_name() == "mysql":
+            options = config["SQLALCHEMY_ENGINE_OPTIONS"]
+            options.setdefault("pool_pre_ping", True)
+            options.setdefault("pool_recycle", 1800)
+            connect = options.setdefault("connect_args", {})
+            connect.setdefault("connect_timeout", 10)
+            connect.setdefault("read_timeout", 30)
+            connect.setdefault("write_timeout", 30)
+            ca = os.getenv("MYSQL_SSL_CA")
+            if ca:
+                connect["ssl"] = {"ca": ca, "check_hostname": True}
 
 
 class DevelopmentConfig(BaseConfig):
@@ -69,8 +95,8 @@ class ProductionConfig(BaseConfig):
         super().validate(config)
         if config["SECRET_KEY"] == DEFAULT_SECRET_KEY or len(config["SECRET_KEY"]) < 32:
             raise RuntimeError("Production SECRET_KEY must be at least 32 characters")
-        if not config["SQLALCHEMY_DATABASE_URI"].startswith(("postgresql://", "postgresql+")):
-            raise RuntimeError("Production requires PostgreSQL")
+        if make_url(config["SQLALCHEMY_DATABASE_URI"]).get_backend_name() != "mysql":
+            raise RuntimeError("Production requires MySQL")
 
 
 CONFIGS = {

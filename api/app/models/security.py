@@ -4,11 +4,12 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.utc_datetime import UTCDateTime
 
 
 class RateLimitRecord(UUIDPrimaryKeyMixin, db.Model):
@@ -19,7 +20,7 @@ class RateLimitRecord(UUIDPrimaryKeyMixin, db.Model):
 
     subject_key: Mapped[str] = mapped_column(String(320), nullable=False)
     action: Mapped[str] = mapped_column(String(50), nullable=False)
-    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_started_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 

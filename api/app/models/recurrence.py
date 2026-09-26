@@ -5,11 +5,12 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin, VersionMixin
+from app.models.utc_datetime import UTCDateTime
 
 
 class RecurrenceFrequency(StrEnum):
@@ -33,10 +34,8 @@ class RecurringRule(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model)
     merchant: Mapped[str | None] = mapped_column(String(160))
     frequency: Mapped[str] = mapped_column(String(20), nullable=False)
     interval: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    next_due_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, index=True
-    )
-    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_due_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)
+    ends_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     category = relationship("Category")
