@@ -80,6 +80,7 @@ class TransactionService:
             "amount": changes.get("amount", transaction.amount),
             "description": changes.get("description", transaction.description),
             "merchant": changes.get("merchant", transaction.merchant),
+            "notes": changes.get("notes", transaction.notes),
             "occurred_at": changes.get("occurred_at", as_utc(transaction.occurred_at)),
         }
         self._validate(user.id, values)
@@ -162,6 +163,7 @@ def serialize_transaction(transaction: Transaction) -> dict[str, Any]:
         "amount": str(transaction.amount),
         "description": transaction.description,
         "merchant": transaction.merchant,
+        "notes": transaction.notes,
         "occurred_at": transaction.occurred_at.isoformat(),
         "source": transaction.source,
         "deleted_at": transaction.deleted_at.isoformat() if transaction.deleted_at else None,
@@ -169,4 +171,6 @@ def serialize_transaction(transaction: Transaction) -> dict[str, Any]:
             str(transaction.recurring_rule_id) if transaction.recurring_rule_id else None
         ),
         "version": transaction.version,
+        "created_at": transaction.created_at.isoformat(),
+        "updated_at": transaction.updated_at.isoformat(),
     }

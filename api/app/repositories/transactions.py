@@ -45,6 +45,7 @@ class TransactionRepository:
                 or_(
                     func.lower(Transaction.description).like(pattern.lower()),
                     func.lower(Transaction.merchant).like(pattern.lower()),
+                    func.lower(Transaction.notes).like(pattern.lower()),
                 )
             )
         total = db.session.scalar(select(func.count()).select_from(Transaction).where(*conditions))

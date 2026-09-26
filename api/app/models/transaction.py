@@ -54,6 +54,7 @@ class Transaction(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model):
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     merchant: Mapped[str | None] = mapped_column(String(160))
+    notes: Mapped[str | None] = mapped_column(Text)
     occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), index=True)
     source: Mapped[str] = mapped_column(String(30), nullable=False, default="manual")

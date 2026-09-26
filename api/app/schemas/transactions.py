@@ -9,6 +9,7 @@ class TransactionSchema(Schema):
     )
     description = fields.String(required=True, validate=validate.Length(min=1, max=255))
     merchant = fields.String(allow_none=True, validate=validate.Length(max=160))
+    notes = fields.String(allow_none=True, validate=validate.Length(max=2000))
     occurred_at = fields.DateTime(required=True, format="iso")
 
 
@@ -18,6 +19,7 @@ class TransactionUpdateSchema(Schema):
     amount = fields.Decimal(as_string=True, places=2, validate=validate.Range(min=0.01))
     description = fields.String(validate=validate.Length(min=1, max=255))
     merchant = fields.String(allow_none=True, validate=validate.Length(max=160))
+    notes = fields.String(allow_none=True, validate=validate.Length(max=2000))
     occurred_at = fields.DateTime(format="iso")
 
 
@@ -29,6 +31,7 @@ class RecurringRuleSchema(Schema):
     )
     description = fields.String(required=True, validate=validate.Length(min=1, max=255))
     merchant = fields.String(allow_none=True, validate=validate.Length(max=160))
+    notes = fields.String(allow_none=True, validate=validate.Length(max=2000))
     frequency = fields.String(
         required=True, validate=validate.OneOf(["daily", "weekly", "monthly"])
     )
@@ -43,6 +46,7 @@ class RecurringRuleUpdateSchema(Schema):
     amount = fields.Decimal(as_string=True, places=2, validate=validate.Range(min=0.01))
     description = fields.String(validate=validate.Length(min=1, max=255))
     merchant = fields.String(allow_none=True, validate=validate.Length(max=160))
+    notes = fields.String(allow_none=True, validate=validate.Length(max=2000))
     frequency = fields.String(validate=validate.OneOf(["daily", "weekly", "monthly"]))
     interval = fields.Integer(validate=validate.Range(min=1, max=365))
     next_due_at = fields.DateTime(format="iso")

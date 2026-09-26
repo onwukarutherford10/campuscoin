@@ -50,10 +50,13 @@ export function transactionFromApi(value: ApiTransaction) {
     amount: moneyToNumber(value.amount),
     description: value.description,
     merchant: value.merchant,
+    notes: value.notes ?? undefined,
     occurredAt: value.occurred_at,
     source: value.source,
     deletedAt: value.deleted_at,
     recurringRuleId: value.recurring_rule_id,
     version: value.version,
+    createdAt: value.created_at,
+    updatedAt: value.updated_at,
   };
 }

@@ -82,9 +82,9 @@ const router = createBrowserRouter([
     element: <ProtectedLayout />,
     children: [
       { path: "/dashboard", element: DATA_MODE === "live" ? <LiveDashboard /> : <Dashboard /> },
-      { path: "/transactions", element: DATA_MODE === "live" ? <LiveFeaturePending title="Transactions" /> : <TransactionsPage /> },
+      { path: "/transactions", element: <TransactionsPage /> },
       { path: "/budgets", element: DATA_MODE === "live" ? <LiveFeaturePending title="Budgets" /> : <BudgetsPage /> },
-      { path: "/categories", element: DATA_MODE === "live" ? <LiveFeaturePending title="Categories" /> : <CategoriesPage /> },
+      { path: "/categories", element: <CategoriesPage /> },
       { path: "/reports", element: DATA_MODE === "live" ? <LiveFeaturePending title="Reports" /> : <ReportsPage /> },
       { path: "/settings", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
     ],
