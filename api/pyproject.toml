@@ -15,7 +15,8 @@ dependencies = [
   "Flask-WTF>=1.2,<2",
   "marshmallow>=3.26,<5",
   "PyJWT>=2.10,<3",
-  "psycopg[binary]>=3.2,<4",
+  "PyMySQL>=1.1,<2",
+  "cryptography>=44,<47",
   "python-dotenv>=1.0,<2",
   "python-dateutil>=2.9,<3",
   "structlog>=25.1,<26",
@@ -36,7 +37,7 @@ packages = ["app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers --cov=app --cov-report=term-missing --cov-fail-under=85"
-markers = ["integration: requires a PostgreSQL test database"]
+markers = ["integration: requires a MySQL test database"]
 
 [tool.coverage.run]
 branch = true

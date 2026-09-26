@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from flask import Flask
+from sqlalchemy import event
 
 from app.api import api_v1
 from app.api.errors import register_error_handlers
@@ -47,5 +48,21 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
 
     # Ensure model metadata is registered for Flask-Migrate.
     from app import models  # noqa: F401
+
+    for table in db.metadata.tables.values():
+        table.dialect_options["mysql"]["engine"] = "InnoDB"
+        table.dialect_options["mysql"]["charset"] = "utf8mb4"
+        table.dialect_options["mysql"]["collate"] = "utf8mb4_unicode_ci"
+
+    with app.app_context():
+        if db.engine.dialect.name == "mysql":
+
+            @event.listens_for(db.engine, "connect")
+            def set_mysql_utc(connection, _record):
+                cursor = connection.cursor()
+                try:
+                    cursor.execute("SET time_zone = '+00:00'")
+                finally:
+                    cursor.close()
 
     return app

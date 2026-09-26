@@ -1,117 +1,147 @@
 # CampusCoin API
 
-The backend is an independently installable Flask application. 
+This independently installable Flask backend uses MySQL with InnoDB and utf8mb4. SQLite is
+available only for quick dialect-neutral tests. The API is versioned under `/api/v1` and returns
+`{"data": ..., "meta": ...}` on success or `{"error": {"code": ..., "message": ..., "fields": ...}}`
+on failure. `GET /health` checks the process; `GET /ready` also checks its database connection.
 
-## Local setup
+## Local Homebrew MySQL
 
-1. Create a PostgreSQL database and user named `campuscoin` (or choose your own names).
-2. From this directory, create a virtual environment and install the project:
+Install MySQL if it is absent, then start the installed release. The project does not require a
+specific local MySQL release. Verification on 2026-09-26 used Homebrew MySQL client **26.7.0**
+and server **26.7.0**.
 
-   ```bash
-   python3.11 -m venv .venv
-   source .venv/bin/activate
-   pip install -e '.[dev]'
-   cp .env.example .env
-   ```
+```bash
+brew install mysql
+brew services start mysql
+mysqladmin ping
+mysql --version
+mysql -N -e 'SELECT VERSION(), @@version_comment;'
+mysql -u root -p
+```
 
-3. Generate local secrets and copy the results into `.env`:
+Create separate databases and least-privilege local users. Replace the sample passwords with
+independently generated values. The accounts have permissions only on their respective database.
 
-   ```bash
-   # SECRET_KEY (prints a cryptographically random value)
-   python -c 'import secrets; print(secrets.token_urlsafe(64))'
+```sql
+CREATE DATABASE IF NOT EXISTS campuscoin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS campuscoin_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'campuscoin_app'@'localhost' IDENTIFIED BY 'replace-app-password';
+CREATE USER IF NOT EXISTS 'campuscoin_test'@'localhost' IDENTIFIED BY 'replace-test-password';
+GRANT ALL PRIVILEGES ON campuscoin.* TO 'campuscoin_app'@'localhost';
+GRANT ALL PRIVILEGES ON campuscoin_test.* TO 'campuscoin_test'@'localhost';
+```
 
-   # Optional: generate a separate PostgreSQL/admin password
-   python -c 'import secrets; print(secrets.token_urlsafe(32))'
-   ```
+Connect with `mysql -u campuscoin_app -p -h localhost campuscoin`. When done with local
+development, use `brew services stop mysql`.
 
-   Set `DATABASE_URL` using the generated database password, for example:
+## Install and configure
 
-   ```dotenv
-   SECRET_KEY=paste-the-first-generated-value-here
-   DATABASE_URL=postgresql+psycopg://campuscoin:database-password@localhost:5432/campuscoin
-   ADMIN_PASSWORD=use-a-different-generated-password
-   ```
+From `api/`:
 
-   Keep `.env` local. It is ignored by Git and must never be committed. For production, use the
-   hosting provider's secret manager instead of a checked-in file.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+cp .env.example .env
+python -c 'import secrets; print(secrets.token_urlsafe(64))'  # SECRET_KEY
+python -c 'import secrets; print(secrets.token_urlsafe(32))'  # separate database passwords
+```
 
-4. Initialize and serve the API:
+Set these values in the ignored `.env` file. URL-encode special characters in passwords before
+putting them in a URL, for example with
+`python -c 'from urllib.parse import quote; print(quote(input("Password: "), safe=""))'`.
+Do not commit `.env`.
 
-   ```bash
-   flask --app wsgi:app db upgrade
-   flask --app wsgi:app seed-categories
-   ADMIN_PASSWORD='choose-a-strong-password' flask --app wsgi:app seed-admin
-   flask --app wsgi:app run --port 5000
-   ```
+```dotenv
+SECRET_KEY=<generated-secret>
+DATABASE_URL=mysql+pymysql://campuscoin_app:<encoded-password>@localhost:3306/campuscoin?charset=utf8mb4
+TEST_DATABASE_URL=mysql+pymysql://campuscoin_test:<encoded-password>@localhost:3306/campuscoin_test?charset=utf8mb4
+```
 
-`GET /health` checks the process. `GET /ready` additionally checks the database. Versioned
-resources live below `/api/v1` and consistently return either `{ "data": ..., "meta": ... }`
-or `{ "error": { "code": ..., "message": ..., "fields": ... } }`.
+Apply migrations and run the idempotent seed commands:
 
-## Quality checks
+```bash
+flask --app wsgi:app db upgrade
+flask --app wsgi:app seed-categories
+ADMIN_PASSWORD='<separate-strong-password>' flask --app wsgi:app seed-admin
+flask --app wsgi:app run --port 5000
+```
+
+Run `flask --app wsgi:app db upgrade` and `seed-categories` again to verify idempotency. An
+existing administrator is preserved by `seed-admin`; it does not change that user's password.
+
+## Tests and database safety
 
 ```bash
 ruff check .
 ruff format --check .
 pytest
+TEST_DATABASE_URL='mysql+pymysql://campuscoin_test:<encoded-password>@localhost:3306/campuscoin_test?charset=utf8mb4' pytest
 ```
 
-Tests default to an isolated in-memory database. Set `TEST_DATABASE_URL` to a disposable
-PostgreSQL database to exercise the same dialect as production. Never point it at development
-or production data.
+Without `TEST_DATABASE_URL`, pytest uses isolated in-memory SQLite for fast tests. The MySQL
+fixture refuses destructive setup unless the URL database name contains `test` and the host is
+local. It rebuilds tables only in that database. A MySQL lifecycle test upgrades a blank database
+with Alembic, downgrades to base, and upgrades again. Never point tests at `campuscoin` or Aiven.
 
-## Configuration
+## Aiven deployment
 
-- `APP_ENV`: `development`, `testing`, or `production`.
-- `DATABASE_URL`: SQLAlchemy PostgreSQL URL, preferably using the `psycopg` driver.
-- `SECRET_KEY`: required to be at least 32 characters in production.
-- `FRONTEND_ORIGINS`: comma-separated credentialed CORS allowlist.
-- `COOKIE_SECURE`: set automatically in production; use `false` only for local HTTP.
-- `LOG_LEVEL`: structured JSON log level.
-- `ACCESS_TOKEN_MINUTES` / `REFRESH_TOKEN_DAYS`: authentication cookie lifetimes.
-- `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX_ATTEMPTS`: database-backed limits for
-  registration, login, and password reset endpoints.
-- `CSV_SYNC_ROW_LIMIT`: imports above this row count are persisted as database jobs.
-- `CSV_PREVIEW_TTL_HOURS`: lifetime of a validated, unconfirmed CSV preview.
-- `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE`: transaction pagination limits.
+[Create an Aiven for MySQL service](https://aiven.io/docs/products/mysql/get-started) with the
+Free plan, then create or select `campuscoin` under the service's Databases section. The free
+service is suited to this academic project, demonstrations, and small workloads. In the service
+Overview, obtain its host, port, username, password, and project CA certificate. Query the
+selected service with `SELECT VERSION()` and compare that result with the local server version.
+Use a supported Aiven MySQL version; the backend uses broadly supported InnoDB, utf8mb4,
+`DATETIME(6)`, JSON, `CHAR(32)` UUIDs, and standard foreign keys.
 
-## Authentication and CSRF
+URL-encode the Aiven password as shown above. Configure these values in the Flask hosting
+provider's secret settings, never in source control:
 
-Access and rotating refresh credentials are stored in `Secure`, `HttpOnly`, `SameSite=Lax`
-cookies in production. Before any `POST`, `PATCH`, `PUT`, or `DELETE`, clients must call
-`GET /api/v1/auth/csrf`, retain the returned `campuscoin_csrf` cookie, and copy the token to an
-`X-CSRF-Token` header. The cookie is replaced when a login or refresh succeeds.
+```dotenv
+APP_ENV=production
+SECRET_KEY=<generated-production-secret>
+DATABASE_URL=mysql+pymysql://<aiven-user>:<encoded-password>@<aiven-host>:<aiven-port>/campuscoin?charset=utf8mb4
+MYSQL_SSL_CA=/absolute/path/to/aiven-project-ca.pem
+ADMIN_EMAIL=<admin-email>
+```
 
-Authentication endpoints are available under `/api/v1/auth`; the current profile is available
-at `/api/v1/users/me`. Categories are returned from `/api/v1/categories` and combine seeded
-system defaults with the authenticated student's own categories. Administrative endpoints live
-under `/api/v1/admin` and require an administrator access cookie.
+Download the Aiven project CA certificate and set `MYSQL_SSL_CA` to its absolute deployed path
+when using certificate verification. The PyMySQL connection verifies the CA and hostname;
+certificate verification is not disabled. Keep the CA current when Aiven rotates it. From the
+deployed environment, run `flask --app wsgi:app db upgrade`, `seed-categories`, and
+`ADMIN_PASSWORD='<strong-password>' flask --app wsgi:app seed-admin`. Request `/ready` and
+confirm it reports `database: ok`. Aiven connectivity and version must be checked using the
+user's actual service credentials; no Aiven credentials are included in this repository.
 
-In tests, password-reset initiation returns its one-time token in response metadata so the full
-flow can be exercised without email infrastructure. Production responses never expose reset
-tokens; outbound delivery is connected through the mail provider in the release-hardening phase.
+## Authentication and existing API
 
-## Transactions and imports
+Production access and rotating refresh credentials use `Secure`, `HttpOnly`, `SameSite=Lax`
+cookies. Before a state-changing request, call `GET /api/v1/auth/csrf` and send its cookie value
+in `X-CSRF-Token`. Login and refresh replace that cookie. Authentication is under `/api/v1/auth`,
+the current profile under `/api/v1/users/me`, categories under `/api/v1/categories`, and admin
+operations under `/api/v1/admin`.
 
-Transaction CRUD, filtering, pagination, revision history, restore, and recent activity are
-available below `/api/v1/transactions`. Recurring rules live at
-`/api/v1/recurring-transactions`; due instances are generated lazily when the ledger is read or
-explicitly with:
+Transaction CRUD, filters, pagination, revision history, restore, and recent activity are under
+`/api/v1/transactions`. Recurring rules live at `/api/v1/recurring-transactions`; due instances
+are generated on ledger reads or by `flask --app wsgi:app materialize-recurring`. CSV imports use
+preview/confirm under `/api/v1/transactions/imports`; invalid rows have a downloadable
+`errors_url`. Large imports return an owned database job for the later job processor.
+
+All application datetimes are normalized to UTC before storage in MySQL `DATETIME(6)` and
+returned with `+00:00`. Monetary values use `NUMERIC`/`DECIMAL` and Python `Decimal`; APIs expose
+two-decimal strings. In tests, password reset tokens appear in response metadata; production
+never exposes them. Email delivery is added in a later phase.
+
+## Backup and restore
+
+Back up the local development database before migrations. Restore only to the intended local
+database after verifying its name:
 
 ```bash
-flask --app wsgi:app materialize-recurring
+mysqldump -u campuscoin_app -p -h localhost --single-transaction campuscoin > campuscoin-backup.sql
+mysql -u campuscoin_app -p -h localhost campuscoin < campuscoin-backup.sql
 ```
 
-CSV imports use a preview/confirm flow below `/api/v1/transactions/imports`. Invalid rows can be
-downloaded from the preview's `errors_url`. Imports up to `CSV_SYNC_ROW_LIMIT` are applied during
-confirmation; larger imports return an owned database job and can be processed by the Phase 6
-job runner without changing the HTTP contract.
-
-All timestamps are timezone-aware and stored in UTC by PostgreSQL. Monetary columns use SQL
-`NUMERIC` and Python `Decimal`, never floating point.
-
-## Migrations
-
-Commit a migration whenever model metadata changes. Upgrade before starting a new application
-release and back up PostgreSQL first in production. Downgrades should be tested against a copy,
-not live data.
+Use the hosting provider's managed backup and restore procedure for Aiven. Check migrations
+against a disposable copy before restoring or downgrading any deployed database.

@@ -3,8 +3,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, Uuid, func
+from sqlalchemy import Integer, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models.utc_datetime import UTCDateTime, UTCNow
 
 
 class UUIDPrimaryKeyMixin:
@@ -13,10 +15,13 @@ class UUIDPrimaryKeyMixin:
 
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        UTCDateTime(), nullable=False, server_default=UTCNow()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+        UTCDateTime(),
+        nullable=False,
+        server_default=UTCNow(),
+        onupdate=UTCNow(),
     )
 
 
