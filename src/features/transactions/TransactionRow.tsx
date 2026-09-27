@@ -54,13 +54,13 @@ export function TransactionRow({ transaction, iconKey, onOpen, onEdit, onDelete 
               <span aria-hidden="true">· </span>
               {formatDayLabel(transaction.date)}
             </span>
-            {transaction.recurring && (
+            {transaction.recurrenceStatus && (
               <span
                 className="inline-flex shrink-0 items-center gap-0.5 text-brand-dark"
-                title={`Repeats ${transaction.frequency ?? "monthly"}`}
+                title={transaction.recurrenceStatus === "active" ? `Repeats ${transaction.frequency ?? "monthly"}` : "Recurring schedule ended"}
               >
                 <Repeat size={11} />
-                {transaction.frequency === "weekly" ? "Weekly" : "Monthly"}
+                {transaction.recurrenceStatus === "ended" ? "Ended" : transaction.frequency === "daily" ? "Daily" : transaction.frequency === "weekly" ? "Weekly" : "Monthly"}
               </span>
             )}
           </span>

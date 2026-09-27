@@ -13,6 +13,7 @@ def test_recurring_materialization_is_idempotent_and_lazy(client):
             "transaction_type": "expense",
             "amount": "100.00",
             "description": "Daily meal plan",
+            "notes": "Student meal subscription",
             "frequency": "daily",
             "interval": 1,
             "next_due_at": "2026-09-22T09:00:00+00:00",
@@ -22,20 +23,23 @@ def test_recurring_materialization_is_idempotent_and_lazy(client):
     assert created.status_code == 201
     rule_id = created.get_json()["data"]["id"]
     assert len(client.get("/api/v1/recurring-transactions").get_json()["data"]) == 1
+    assert created.get_json()["data"]["notes"] == "Student meal subscription"
 
     first = client.get("/api/v1/transactions")
     assert first.get_json()["meta"]["total"] == 3
     second = client.get("/api/v1/transactions")
     assert second.get_json()["meta"]["total"] == 3
     assert {item["source"] for item in second.get_json()["data"]} == {"recurring"}
+    assert {item["notes"] for item in second.get_json()["data"]} == {"Student meal subscription"}
 
     token = client.get_cookie("campuscoin_csrf").value
     changed = client.patch(
         f"/api/v1/recurring-transactions/{rule_id}",
-        json={"description": "Meal subscription"},
+        json={"description": "Meal subscription", "notes": "Updated recurring note"},
         headers={"X-CSRF-Token": token},
     )
     assert changed.status_code == 200
+    assert changed.get_json()["data"]["notes"] == "Updated recurring note"
     assert (
         client.delete(
             f"/api/v1/recurring-transactions/{rule_id}",

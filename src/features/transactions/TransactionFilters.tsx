@@ -1,6 +1,5 @@
 import { Search } from "lucide-react";
-import type { TransactionType } from "../../types";
-import { CategoryInput } from "../../components/CategoryInput";
+import type { Category, TransactionType } from "../../types";
 
 export type TypeFilter = "all" | TransactionType;
 export type DateFilter = "all" | "month" | "week";
@@ -14,7 +13,7 @@ interface TransactionFiltersProps {
   onDate: (value: DateFilter) => void;
   category: string;
   onCategory: (value: string) => void;
-  categoryOptions: string[];
+  categoryOptions: Category[];
 }
 
 const selectClass =
@@ -39,18 +38,13 @@ export function TransactionFilters({
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[180px] flex-1">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 z-10 text-gray-400" />
-          <CategoryInput
+          <input
             type="search"
             value={query}
-            onChange={onQuery}
-            options={categoryOptions}
-            ariaLabel="Search transactions"
+            onChange={(event) => onQuery(event.target.value)}
+            aria-label="Search transactions"
             placeholder="Search transactions"
-            onPick={(option) => {
-              onQuery("");
-              onCategory(option);
-            }}
-            inputClassName="h-10 w-full rounded-xl border border-line bg-white pl-9 pr-3 text-sm outline-none transition focus:border-brand"
+            className="h-10 w-full rounded-xl border border-line bg-white pl-9 pr-3 text-sm outline-none transition focus:border-brand"
           />
         </div>
 
@@ -69,8 +63,8 @@ export function TransactionFilters({
         <select value={category} onChange={(event) => onCategory(event.target.value)} aria-label="Filter by category" className={selectClass}>
           <option value="all">All categories</option>
           {categoryOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
+            <option key={option.id} value={option.id}>
+              {option.name}
             </option>
           ))}
         </select>

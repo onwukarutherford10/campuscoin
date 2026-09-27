@@ -10,7 +10,7 @@ interface BudgetFormModalProps {
   /** Existing budgets; used to keep categories unique in add mode. */
   budgets: Budget[];
   onClose: () => void;
-  onSubmit: (input: { id?: string; category: string; limit: number }) => Promise<ServiceResult<Budget>>;
+  onSubmit: (input: { id?: string; category: string; categoryId?: string; limit: number }) => Promise<ServiceResult<Budget>>;
 }
 
 const inputClass =
@@ -31,6 +31,7 @@ export function BudgetFormModal({ mode, budget, budgets, onClose, onSubmit }: Bu
   });
 
   const selected = category || available[0]?.name || "";
+  const selectedCategory = categories.find((entry) => entry.name === selected);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -46,6 +47,7 @@ export function BudgetFormModal({ mode, budget, budgets, onClose, onSubmit }: Bu
     const result = await onSubmit({
       id: budget?.id,
       category: selected,
+      categoryId: selectedCategory?.id ?? budget?.categoryId,
       limit: Number(amount),
     });
     setSubmitting(false);

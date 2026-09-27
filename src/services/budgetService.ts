@@ -5,6 +5,12 @@ import type { Budget, ServiceResult } from "../types";
 import { loadOnboardingData } from "../utils/storage";
 import { delay, hasKey, loadJSON, newId, saveJSON } from "./store";
 import { readTransactionsSync } from "./transactionService";
+import { DATA_MODE } from "./api/config";
+import { api } from "./api";
+import type { ApiBudget } from "./api/dto";
+import { budgetFromApi, numberToMoney } from "./api/adapters";
+import { toServiceError } from "./api/errors";
+import { getAuthSnapshot } from "./api/authState";
 
 const BUDGETS_KEY = "campuscoin.budgets";
 
@@ -35,6 +41,18 @@ function roundTo500(amount: number): number {
 function currentMonthPrefix(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function currentBudgetPeriod(): { year: number; month: number } {
+  const timezone = getAuthSnapshot().user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "numeric" }).formatToParts(new Date());
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: value("year"), month: value("month") };
+}
+
+export function currentBudgetPeriodLabel(): string {
+  const { year, month } = currentBudgetPeriod();
+  return new Intl.DateTimeFormat("en-NG", { month: "long", year: "numeric" }).format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
 /** Amount spent this month in a category (monthly budgets reset each month). */
@@ -83,12 +101,41 @@ function withSpent(budgets: StoredBudget[]): Budget[] {
 }
 
 /** All budgets enriched with the month's spending so far. */
-export function listBudgets(): Promise<Budget[]> {
+export async function listBudgets(): Promise<Budget[]> {
+  if (DATA_MODE === "live") {
+    const period = currentBudgetPeriod();
+    const response = await api.request<ApiBudget[]>("/budgets", { query: period });
+    return response.data.map(budgetFromApi);
+  }
   return delay(withSpent(readStore()));
 }
 
 /** Creates a budget or updates an existing one (pass `id` when editing). */
-export function saveBudget(input: { id?: string; category: string; limit: number }): Promise<ServiceResult<Budget>> {
+export async function saveBudget(input: { id?: string; category: string; categoryId?: string; limit: number }): Promise<ServiceResult<Budget>> {
+  if (DATA_MODE === "live") {
+    const errors: Record<string, string> = {};
+    if (!input.categoryId) errors.category = "Choose an expense category.";
+    if (!Number.isFinite(input.limit) || input.limit <= 0) errors.limit = "Enter a monthly amount greater than zero.";
+    if (Object.keys(errors).length > 0) return { ok: false, errors };
+    try {
+      const period = currentBudgetPeriod();
+      const response = await api.request<ApiBudget>("/budgets", {
+        method: "POST",
+        body: {
+          category_id: input.categoryId,
+          year: period.year,
+          month: period.month,
+          amount: numberToMoney(input.limit),
+        },
+      });
+      return { ok: true, data: budgetFromApi(response.data) };
+    } catch (error) {
+      const result = toServiceError(error);
+      if (result.errors.amount) result.errors.limit = result.errors.amount;
+      if (result.errors.category_id) result.errors.category = result.errors.category_id;
+      return result;
+    }
+  }
   const category = input.category.trim();
   const errors: Record<string, string> = {};
 
@@ -120,7 +167,15 @@ export function saveBudget(input: { id?: string; category: string; limit: number
   return delay({ ok: true, data: withSpent([saved])[0] });
 }
 
-export function removeBudget(id: string): Promise<ServiceResult> {
+export async function removeBudget(id: string): Promise<ServiceResult> {
+  if (DATA_MODE === "live") {
+    try {
+      await api.request<{ deleted: boolean }>(`/budgets/${id}`, { method: "DELETE" });
+      return { ok: true };
+    } catch (error) {
+      return toServiceError(error);
+    }
+  }
   writeStore(readStore().filter((budget) => budget.id !== id));
   return delay({ ok: true });
 }

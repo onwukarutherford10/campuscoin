@@ -4,6 +4,11 @@ import type { Category, ServiceResult, TransactionType } from "../types";
 import { delay, hasKey, loadJSON, newId, saveJSON } from "./store";
 import { readBudgetsSync } from "./budgetService";
 import { readTransactionsSync } from "./transactionService";
+import { DATA_MODE } from "./api/config";
+import { api } from "./api";
+import type { ApiCategory } from "./api/dto";
+import { categoryFromApi } from "./api/adapters";
+import { toServiceError } from "./api/errors";
 
 const CATEGORIES_KEY = "campuscoin.categories";
 
@@ -55,7 +60,11 @@ function writeStore(categories: Category[]): void {
 }
 
 /** All categories (seeded defaults first, then personal ones). */
-export function listCategories(): Promise<Category[]> {
+export async function listCategories(): Promise<Category[]> {
+  if (DATA_MODE === "live") {
+    const response = await api.request<ApiCategory[]>("/categories");
+    return response.data.filter((category) => category.is_active).map(categoryFromApi);
+  }
   return delay(readStore());
 }
 
@@ -64,11 +73,22 @@ export function readCategoriesSync(): Category[] {
   return readStore();
 }
 
-export function createCategory(input: {
+export async function createCategory(input: {
   name: string;
   type: TransactionType;
   icon?: string | null;
 }): Promise<ServiceResult<Category>> {
+  if (DATA_MODE === "live") {
+    try {
+      const response = await api.request<ApiCategory>("/categories", {
+        method: "POST",
+        body: { name: input.name.trim(), category_type: input.type, icon: input.icon ?? null },
+      });
+      return { ok: true, data: categoryFromApi(response.data) };
+    } catch (error) {
+      return toServiceError(error);
+    }
+  }
   const name = input.name.trim();
   const errors: Record<string, string> = {};
 
@@ -101,7 +121,15 @@ export function createCategory(input: {
 }
 
 /** Deletes a personal category; defaults and categories in use are blocked. */
-export function deleteCategory(id: string): Promise<ServiceResult> {
+export async function deleteCategory(id: string): Promise<ServiceResult> {
+  if (DATA_MODE === "live") {
+    try {
+      await api.request(`/categories/${id}`, { method: "DELETE" });
+      return { ok: true };
+    } catch (error) {
+      return toServiceError(error);
+    }
+  }
   const category = readStore().find((entry) => entry.id === id);
   if (!category) return Promise.resolve({ ok: false, error: "Category not found." });
   if (category.isSystem) return Promise.resolve({ ok: false, error: "Default categories can't be deleted." });
@@ -124,10 +152,21 @@ export function deleteCategory(id: string): Promise<ServiceResult> {
  * immutable, and a name that is referenced by transactions or budgets is
  * protected (renaming would orphan those records).
  */
-export function updateCategory(
+export async function updateCategory(
   id: string,
   input: { name?: string; icon?: string | null },
 ): Promise<ServiceResult<Category>> {
+  if (DATA_MODE === "live") {
+    try {
+      const response = await api.request<ApiCategory>(`/categories/${id}`, {
+        method: "PATCH",
+        body: input,
+      });
+      return { ok: true, data: categoryFromApi(response.data) };
+    } catch (error) {
+      return toServiceError(error);
+    }
+  }
   const store = readStore();
   const category = store.find((entry) => entry.id === id);
   if (!category) return Promise.resolve({ ok: false, error: "Category not found." });

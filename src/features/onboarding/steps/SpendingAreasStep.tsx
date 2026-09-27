@@ -1,6 +1,7 @@
 import type { SpendingCategory } from "../../../types";
 import { getCategoryMeta } from "../../../utils/categoryMeta";
 import { OptionCard } from "../OptionCard";
+import type { OnboardingOption } from "./IncomeSourcesStep";
 
 const CATEGORIES: SpendingCategory[] = [
   "Food",
@@ -13,24 +14,26 @@ const CATEGORIES: SpendingCategory[] = [
 ];
 
 interface SpendingAreasStepProps {
-  selected: SpendingCategory[];
-  onToggle: (category: SpendingCategory) => void;
+  selected: string[];
+  onToggle: (category: string) => void;
+  options?: OnboardingOption[];
 }
 
 /** Onboarding page 5: spending categories that matter most (multi-select). */
-export function SpendingAreasStep({ selected, onToggle }: SpendingAreasStepProps) {
+export function SpendingAreasStep({ selected, onToggle, options }: SpendingAreasStepProps) {
+  const choices = options ?? CATEGORIES.map((name) => ({ id: name, name }));
   return (
     <div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {CATEGORIES.map((category) => {
-          const meta = getCategoryMeta(category);
+        {choices.map((category) => {
+          const meta = getCategoryMeta(category.name);
           return (
             <OptionCard
-              key={category}
-              label={category}
+              key={category.id}
+              label={category.name}
               icon={meta.icon}
-              selected={selected.includes(category)}
-              onToggle={() => onToggle(category)}
+              selected={selected.includes(category.id)}
+              onToggle={() => onToggle(category.id)}
             />
           );
         })}

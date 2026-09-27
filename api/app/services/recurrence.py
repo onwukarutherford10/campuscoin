@@ -43,6 +43,7 @@ class RecurrenceService:
                 "amount",
                 "description",
                 "merchant",
+                "notes",
                 "frequency",
                 "interval",
             )
@@ -104,6 +105,7 @@ class RecurrenceService:
                             "amount": rule.amount,
                             "description": rule.description,
                             "merchant": rule.merchant,
+                            "notes": rule.notes,
                             "occurred_at": due,
                         },
                         source="recurring",
@@ -161,6 +163,7 @@ def serialize_rule(rule: RecurringRule) -> dict:
         "amount": str(rule.amount),
         "description": rule.description,
         "merchant": rule.merchant,
+        "notes": rule.notes,
         "frequency": rule.frequency,
         "interval": rule.interval,
         "next_due_at": rule.next_due_at.isoformat(),

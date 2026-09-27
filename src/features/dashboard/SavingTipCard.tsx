@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Lightbulb, Pin, X } from "lucide-react";
 import type { SavingTip } from "../../types";
 import { Card } from "../../components/StateViews";
+import { DATA_MODE } from "../../services/api/config";
 
 interface SavingTipCardProps {
   tip: SavingTip | null;
@@ -22,7 +23,7 @@ export function SavingTipCard({ tip }: SavingTipCardProps) {
           <Lightbulb size={16} />
           {tip.title}
         </span>
-        <div className="flex items-center gap-1">
+        {DATA_MODE === "mock" && <div className="flex items-center gap-1">
           <button
             type="button"
             aria-label={pinned ? "Unpin tip" : "Pin tip"}
@@ -40,25 +41,25 @@ export function SavingTipCard({ tip }: SavingTipCardProps) {
           >
             <X size={15} />
           </button>
-        </div>
+        </div>}
       </header>
 
       <p className="mt-3 text-sm leading-relaxed text-gray-700">{tip.body}</p>
 
-      {showDetail && (
+      {DATA_MODE === "mock" && showDetail && (
         <p className="mt-3 rounded-xl bg-white/70 px-4 py-3 text-[13px] leading-relaxed text-gray-600">
           Based on this month's spending against your recent pattern. Open Reports for the full
           money review and more tips.
         </p>
       )}
 
-      <button
+      {DATA_MODE === "mock" && <button
         type="button"
         onClick={() => setShowDetail((value) => !value)}
         className="mt-4 rounded-xl border border-brand/40 bg-white px-4 py-2 text-[13px] font-medium text-brand-dark transition hover:bg-white/80"
       >
         {showDetail ? "Hide insight" : "View insight"}
-      </button>
+      </button>}
     </Card>
   );
 }

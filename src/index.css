@@ -1,23 +1,22 @@
 @import "tailwindcss";
 
-/* Design tokens: black + green + white Campus Coin visual language. */
+
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  /* Display face for the wordmark, hero headlines and big financial numbers. */
   --font-display: "Space Grotesk", "Plus Jakarta Sans", ui-sans-serif, sans-serif;
 
   --color-brand: rgb(38 153 83);
   --color-brand-dark: rgb(28 112 62);
   --color-brand-soft: rgb(231 247 238);
 
-  /* Bright mint for accents on the black balance/financial surfaces. */
+  
   --color-mint: rgb(110 231 158);
 
   --color-ink: rgb(20 22 21);
   --color-ink-raised: rgb(36 38 37);
   --color-ink-muted: rgb(161 166 163);
 
-  /* Spec palette: dark / near-black / soft background / semantics. */
+  
   --color-night: rgb(10 10 10);
   --color-graphite: rgb(17 17 17);
   --color-success: rgb(16 185 129);
@@ -33,7 +32,7 @@
   --secondaryColor: rgb(89, 168, 69);
   --grey: rgb(62, 61, 61);
 
-  /* Motion system (level 1–3 easing used across the product). */
+  
   --cc-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -49,7 +48,7 @@ body {
   outline-offset: 2px;
 }
 
-/* Skeleton loading blocks (section 17 of the Phase 1 spec). */
+/* Skeleton loading blocks */
 .skeleton {
   position: relative;
   overflow: hidden;

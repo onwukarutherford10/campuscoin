@@ -7,10 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:api-client": "node --experimental-strip-types --test tests/apiClient.test.mts",
     "preview": "vite preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
+    "@nivo/bar": "^0.99.0",
+    "@nivo/pie": "^0.99.0",
     "@tailwindcss/vite": "^4.3.3",
     "lucide-react": "^1.48.0",
     "react": "^19.2.8",

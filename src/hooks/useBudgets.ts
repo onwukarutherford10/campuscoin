@@ -8,7 +8,7 @@ export interface UseBudgets {
   loading: boolean;
   error: boolean;
   reload: () => void;
-  save: (input: { id?: string; category: string; limit: number }) => Promise<ServiceResult<Budget>>;
+  save: (input: { id?: string; category: string; categoryId?: string; limit: number }) => Promise<ServiceResult<Budget>>;
   remove: (id: string) => Promise<ServiceResult>;
 }
 
@@ -18,7 +18,7 @@ export function useBudgets(): UseBudgets {
   const { reload } = list;
 
   const save = useCallback(
-    async (input: { id?: string; category: string; limit: number }) => {
+    async (input: { id?: string; category: string; categoryId?: string; limit: number }) => {
       const result = await saveBudget(input);
       if (result.ok) reload();
       return result;

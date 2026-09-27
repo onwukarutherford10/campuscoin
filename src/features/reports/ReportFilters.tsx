@@ -83,7 +83,7 @@ export function ReportFilters({
           aria-label="Filter by type"
           className={selectClass}
         >
-          <option value="all">Income & expense</option>
+          <option value="all">All</option>
           <option value="income">Income only</option>
           <option value="expense">Expense only</option>
         </select>

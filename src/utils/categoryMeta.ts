@@ -49,6 +49,13 @@ const META: Record<string, CategoryMeta> = {
   Subscriptions: { icon: MonitorPlay, tint: "bg-slate-100 text-slate-500" },
   Entertainment: { icon: Film, tint: "bg-slate-100 text-slate-500" },
   Miscellaneous: { icon: ShoppingBag, tint: "bg-slate-100 text-slate-500" },
+  Housing: { icon: House, tint: "bg-slate-100 text-slate-500" },
+  "Tuition & Books": { icon: BookOpen, tint: "bg-slate-100 text-slate-500" },
+  "Data & Airtime": { icon: Smartphone, tint: "bg-slate-100 text-slate-500" },
+  Health: { icon: Heart, tint: "bg-slate-100 text-slate-500" },
+  "Personal Care": { icon: Shirt, tint: "bg-slate-100 text-slate-500" },
+  Savings: { icon: Banknote, tint: "bg-slate-100 text-slate-500" },
+  "Other Expense": { icon: Tag, tint: "bg-slate-100 text-slate-500" },
 
   // Income sources
   Allowance: { icon: HandCoins, tint: "bg-emerald-50 text-emerald-600" },
@@ -57,6 +64,9 @@ const META: Record<string, CategoryMeta> = {
   "Gig or freelance work": { icon: Laptop, tint: "bg-emerald-50 text-emerald-600" },
   Gifts: { icon: Gift, tint: "bg-emerald-50 text-emerald-600" },
   "Other income": { icon: Banknote, tint: "bg-emerald-50 text-emerald-600" },
+  "Part-time Work": { icon: Briefcase, tint: "bg-emerald-50 text-emerald-600" },
+  Gift: { icon: Gift, tint: "bg-emerald-50 text-emerald-600" },
+  "Other Income": { icon: Banknote, tint: "bg-emerald-50 text-emerald-600" },
 
   // Academic levels
   "100 Level": { icon: BookOpen, tint: "bg-slate-100 text-slate-500" },

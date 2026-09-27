@@ -1,13 +1,14 @@
 import type { SpendingOverview as SpendingData } from "../../types";
 import { EmptyState } from "../../components/StateViews";
 import { formatNaira, formatPercent } from "../../utils/format";
+import { ResponsivePie } from "@nivo/pie";
 
 interface SpendingOverviewProps {
   data: SpendingData;
   onAddTransaction: () => void;
 }
 
-/** Category spending breakdown with horizontal bars. */
+/** Category spending breakdown backed by the dashboard's current-month totals. */
 export function SpendingOverview({ data, onAddTransaction }: SpendingOverviewProps) {
   if (data.categories.length === 0) {
     return (
@@ -29,22 +30,33 @@ export function SpendingOverview({ data, onAddTransaction }: SpendingOverviewPro
         </p>
       </div>
 
-      <ul className="mt-5 space-y-4">
+      <div className="mt-3 h-72" role="img" aria-label="Current month spending by category pie chart">
+        <ResponsivePie
+          data={data.categories.map((category) => ({
+            id: category.category,
+            label: category.category,
+            value: category.amount,
+          }))}
+          margin={{ top: 18, right: 18, bottom: 18, left: 18 }}
+          innerRadius={0.58}
+          padAngle={1.5}
+          cornerRadius={4}
+          activeOuterRadiusOffset={6}
+          colors={{ scheme: "greens" }}
+          enableArcLinkLabels={false}
+          arcLabelsSkipAngle={12}
+          valueFormat={(value) => formatNaira(value)}
+          legends={[]}
+        />
+      </div>
+
+      <ul className="mt-2 grid gap-x-5 gap-y-2 sm:grid-cols-2">
         {data.categories.map((category) => (
-          <li key={category.category}>
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="font-medium text-gray-700">{category.category}</span>
-              <span className="text-gray-500">
+          <li key={category.category} className="flex items-center justify-between gap-3 text-[13px]">
+              <span className="truncate font-medium text-gray-700">{category.category}</span>
+              <span className="shrink-0 text-gray-500">
                 {formatNaira(category.amount)} · {formatPercent(category.percentage)}
               </span>
-            </div>
-            <div
-              className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-gray-100"
-              role="img"
-              aria-label={`${category.category}: ${formatNaira(category.amount)}, ${formatPercent(category.percentage)} of spending`}
-            >
-              <div className="h-full rounded-full bg-brand" style={{ width: `${category.percentage}%` }} />
-            </div>
           </li>
         ))}
       </ul>

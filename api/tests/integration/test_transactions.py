@@ -18,6 +18,7 @@ def make_transaction(client, category_id, **overrides):
         "amount": "25.50",
         "description": "Lunch",
         "merchant": "Campus Cafe",
+        "notes": "Met project group",
         "occurred_at": "2026-09-20T12:00:00+01:00",
     }
     payload.update(overrides)
@@ -32,23 +33,26 @@ def test_transaction_crud_history_filters_and_recent_activity(app):
     assert created.status_code == 201
     transaction_id = created.get_json()["data"]["id"]
     assert created.get_json()["data"]["amount"] == "25.50"
+    assert created.get_json()["data"]["notes"] == "Met project group"
 
     fetched = client.get(f"/api/v1/transactions/{transaction_id}")
     assert fetched.status_code == 200
     token = client.get_cookie("campuscoin_csrf").value
     changed = client.patch(
         f"/api/v1/transactions/{transaction_id}",
-        json={"amount": "30.00", "description": "Dinner"},
+        json={"amount": "30.00", "description": "Dinner", "notes": "Updated note"},
         headers={"X-CSRF-Token": token},
     )
     assert changed.status_code == 200
     assert changed.get_json()["data"]["version"] == 2
+    assert changed.get_json()["data"]["notes"] == "Updated note"
 
     listing = client.get(
         "/api/v1/transactions?type=expense&q=Dinner&from=2026-09-01T00:00:00%2B01:00"
     )
     assert listing.status_code == 200
     assert listing.get_json()["meta"]["total"] == 1
+    assert client.get("/api/v1/transactions?q=Updated").get_json()["meta"]["total"] == 1
     assert client.get("/api/v1/transactions?type=income").get_json()["meta"]["total"] == 0
 
     recent = client.get("/api/v1/transactions/recent").get_json()["data"]

@@ -29,19 +29,20 @@ export type SpendingCategory =
 export interface OnboardingData {
   fullName: string;
   academicLevel: AcademicLevel | "";
-  incomeSources: IncomeSource[];
+  incomeSources: string[];
   monthlyIncome: number | null;
   savingsGoal: number | null;
-  spendingCategories: SpendingCategory[];
+  spendingCategories: string[];
   completed: boolean;
 }
 
 export type TransactionType = "income" | "expense";
 
-export type RecurrenceFrequency = "weekly" | "monthly";
+export type RecurrenceFrequency = "daily" | "weekly" | "monthly";
 
 export interface Transaction {
   id: string;
+  categoryId?: string;
   type: TransactionType;
   description: string;
   amount: number;
@@ -55,6 +56,11 @@ export interface Transaction {
   endDate?: string | null;
   createdAt: string;
   updatedAt: string;
+  source?: string;
+  recurringRuleId?: string | null;
+  version?: number;
+  nextDueAt?: string | null;
+  recurrenceStatus?: "active" | "ended";
 }
 
 /** Payload accepted when creating or editing a transaction. */
@@ -63,11 +69,14 @@ export interface TransactionDraft {
   description: string;
   amount: number;
   category: string;
+  categoryId?: string;
   date: string;
   notes?: string;
   recurring?: boolean;
   frequency?: RecurrenceFrequency;
   endDate?: string | null;
+  recurringRuleId?: string | null;
+  previousEndDate?: string | null;
 }
 
 export interface Category {
@@ -122,9 +131,17 @@ export interface SpendingOverview {
 
 export interface Budget {
   id: string;
+  categoryId?: string;
   category: string;
   limit: number;
   spent: number;
+  remaining?: number;
+  percentage?: number;
+  status?: "within_limit" | "near_limit" | "exceeded";
+  year?: number;
+  month?: number;
+  nearLimitPercent?: number;
+  version?: number;
 }
 
 export interface SavingTip {
@@ -139,6 +156,14 @@ export interface TrendPoint {
   expenses: number;
 }
 
+export interface DashboardAlert {
+  id: string;
+  kind: string;
+  message: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
 export interface DashboardData {
   summary: FinancialSummary;
   transactions: Transaction[];
@@ -148,6 +173,7 @@ export interface DashboardData {
   /** One plain-language key insight; the full analysis lives on Reports. */
   insight: string | null;
   trend: TrendPoint[];
+  alerts: DashboardAlert[];
 }
 
 /* ------------------------------------------------------------------ *

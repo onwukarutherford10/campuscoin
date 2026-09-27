@@ -218,7 +218,8 @@ export function CategoriesPage() {
                   // Typing a name that already exists offers the shortcut
                   // straight into editing that category instead.
                   const existing = items.find((entry) => entry.name === value);
-                  if (existing && !editing) startEdit(existing);
+                  if (existing && !editing && !existing.isSystem) startEdit(existing);
+                  if (existing?.isSystem) setErrors({ name: "Default categories can't be changed." });
                 }}
               />
               {errors.name && <p className="mt-1 text-[13px] text-red-600">{errors.name}</p>}
@@ -290,7 +291,7 @@ export function CategoriesPage() {
       {deleteTarget && (
         <ConfirmDialog
           title="Delete category?"
-          message={`"${deleteTarget.name}" will be removed. Categories in use by transactions or budgets are protected.`}
+          message={`"${deleteTarget.name}" will be removed from future selection. Existing records keep their category history.`}
           confirmLabel="Delete"
           danger
           onConfirm={confirmDelete}

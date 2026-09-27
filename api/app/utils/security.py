@@ -25,7 +25,7 @@ def init_api_security(app, api_blueprint: Blueprint) -> None:
         return None
 
 
-def auth_required(*, admin: bool = False):
+def auth_required(*, admin: bool = False, allow_unverified: bool = False):
     def decorator(view):
         @wraps(view)
         def wrapped(*args, **kwargs):
@@ -38,6 +38,15 @@ def auth_required(*, admin: bool = False):
                 return failure(error.code, error.message, status=error.status)
             if admin and user.role != "admin":
                 return failure("admin_required", "Administrator access required", status=403)
+            if (
+                current_app.config["EMAIL_VERIFICATION_REQUIRED"]
+                and not allow_unverified
+                and user.role != "admin"
+                and user.email_verified_at is None
+            ):
+                return failure(
+                    "email_verification_required", "Verify your email to continue", status=403
+                )
             g.current_user = user
             g.auth_session = session
             return view(*args, **kwargs)
