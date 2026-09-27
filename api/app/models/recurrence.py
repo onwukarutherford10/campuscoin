@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -32,6 +32,7 @@ class RecurringRule(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     merchant: Mapped[str | None] = mapped_column(String(160))
+    notes: Mapped[str | None] = mapped_column(Text)
     frequency: Mapped[str] = mapped_column(String(20), nullable=False)
     interval: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     next_due_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)

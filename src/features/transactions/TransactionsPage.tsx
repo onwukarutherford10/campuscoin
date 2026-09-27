@@ -14,6 +14,8 @@ import TransactionDetailModal from "./TransactionDetailModal";
 import TransactionFormModal from "./TransactionFormModal";
 import CsvImportModal from "../reports/CsvImportModal";
 import { formatDayLabel } from "../../utils/format";
+import { DATA_MODE } from "../../services/api/config";
+import { calendarDate, dateAtLocalTime } from "../../services/transactionService";
 
 type FormState = { mode: "add"; type: TransactionType } | { mode: "edit"; transaction: Transaction };
 
@@ -21,20 +23,22 @@ interface LayoutContext {
   openMenu: () => void;
 }
 
-function daysAgoISO(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
+function dateBounds(filter: DateFilter): { from?: string; to?: string } {
+  if (filter === "all") return {};
+  const now = new Date();
+  const today = calendarDate(now.toISOString());
+  let firstDate = `${today.slice(0, 7)}-01`;
+  if (filter === "week") {
+    const day = new Date(`${today}T00:00:00Z`);
+    day.setUTCDate(day.getUTCDate() - 6);
+    firstDate = day.toISOString().slice(0, 10);
+  }
+  return { from: dateAtLocalTime(firstDate, 0), to: now.toISOString() };
 }
 
 /** Complete transaction management: search, filters, grouped list, CRUD. */
 export function TransactionsPage() {
   const { openMenu } = useOutletContext<LayoutContext>();
-  const { items, loading, error, reload, create, update, remove } = useTransactions();
-  const { items: categories } = useCategories();
-
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
@@ -44,6 +48,17 @@ export function TransactionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [importing, setImporting] = useState(false);
+  const [page, setPage] = useState(1);
+  const bounds = dateBounds(dateFilter);
+  const { items, loading, error, reload, create, update, remove, total, perPage } = useTransactions({
+    page,
+    perPage: 25,
+    query,
+    type: typeFilter === "all" ? undefined : typeFilter,
+    categoryId: categoryFilter === "all" ? undefined : categoryFilter,
+    ...bounds,
+  });
+  const { items: categories } = useCategories();
 
   const iconKeys = useMemo(() => {
     const map = new Map<string, string | null>();
@@ -51,39 +66,16 @@ export function TransactionsPage() {
     return map;
   }, [categories]);
 
-  const categoryOptions = useMemo(
-    () => [...new Set(items.map((entry) => entry.category))].sort(),
-    [items],
-  );
-
-  const filtered = useMemo(() => {
-    const text = query.trim().toLowerCase();
-    const monthPrefix = daysAgoISO(0).slice(0, 7);
-    const weekStart = daysAgoISO(6);
-
-    return items.filter((entry) => {
-      if (typeFilter !== "all" && entry.type !== typeFilter) return false;
-      if (categoryFilter !== "all" && entry.category !== categoryFilter) return false;
-      if (dateFilter === "month" && !entry.date.startsWith(monthPrefix)) return false;
-      if (dateFilter === "week" && entry.date < weekStart) return false;
-      if (text && !`${entry.description} ${entry.category} ${entry.notes ?? ""}`.toLowerCase().includes(text)) {
-        return false;
-      }
-      return true;
-    });
-  }, [items, query, typeFilter, dateFilter, categoryFilter]);
-
-  // Newest first — one continuous list, structured like a fintech feed.
-  const sorted = useMemo(
-    () => [...filtered].sort((a, b) => b.date.localeCompare(a.date)),
-    [filtered],
-  );
+  const sorted = useMemo(() => [...items].sort((a, b) => b.date.localeCompare(a.date)), [items]);
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const hasActiveFilters = query !== "" || typeFilter !== "all" || dateFilter !== "all" || categoryFilter !== "all";
 
   function clearFilters() {
     setQuery("");
     setTypeFilter("all");
     setDateFilter("all");
     setCategoryFilter("all");
+    setPage(1);
   }
 
   async function handleSubmitForm(draft: TransactionDraft) {
@@ -126,13 +118,9 @@ export function TransactionsPage() {
         onOpenMenu={openMenu}
         actions={
           <>
-            <button
-              type="button"
-              onClick={() => setImporting(true)}
-              className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              Import CSV
-            </button>
+            {DATA_MODE === "mock" && (
+              <button type="button" onClick={() => setImporting(true)} className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">Import CSV</button>
+            )}
             <button
               type="button"
               onClick={() => setForm({ mode: "add", type: "income" })}
@@ -153,14 +141,14 @@ export function TransactionsPage() {
 
       <TransactionFilters
         query={query}
-        onQuery={setQuery}
+        onQuery={(value) => { setQuery(value); setPage(1); }}
         type={typeFilter}
-        onType={setTypeFilter}
+        onType={(value) => { setTypeFilter(value); setPage(1); }}
         date={dateFilter}
-        onDate={setDateFilter}
+        onDate={(value) => { setDateFilter(value); setPage(1); }}
         category={categoryFilter}
-        onCategory={setCategoryFilter}
-        categoryOptions={categoryOptions}
+        onCategory={(value) => { setCategoryFilter(value); setPage(1); }}
+        categoryOptions={categories}
       />
 
       {loading && items.length === 0 && (
@@ -175,7 +163,7 @@ export function TransactionsPage() {
         </Card>
       )}
 
-      {!loading && !error && items.length === 0 && (
+      {!loading && !error && total === 0 && !hasActiveFilters && (
         <EmptyState
           title="No transactions yet."
           description="Add your first income or expense to start tracking your money."
@@ -184,7 +172,7 @@ export function TransactionsPage() {
         />
       )}
 
-      {!error && items.length > 0 && filtered.length === 0 && (
+      {!loading && !error && total === 0 && hasActiveFilters && (
         <EmptyState
           title="No transactions match your filters."
           description="Try a different search or clear what you've selected."
@@ -198,7 +186,7 @@ export function TransactionsPage() {
           <header className="mb-3 flex items-center justify-between gap-3 px-1 sm:mb-4 sm:px-0">
             <h2 className="text-[15px] font-semibold text-gray-900">Transactions</h2>
             <span className="text-[13px] text-gray-400">
-              {sorted.length} of {items.length}
+              {sorted.length} of {total}
             </span>
           </header>
           <ul className="space-y-3 sm:space-y-0 sm:divide-y sm:divide-line">
@@ -214,6 +202,14 @@ export function TransactionsPage() {
             ))}
           </ul>
         </section>
+      )}
+
+      {!error && totalPages > 1 && (
+        <nav className="mt-4 flex items-center justify-center gap-3" aria-label="Transaction pages">
+          <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)} className="rounded-xl border border-line bg-white px-4 py-2 text-sm disabled:opacity-40">Previous</button>
+          <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
+          <button type="button" disabled={page >= totalPages || loading} onClick={() => setPage((value) => value + 1)} className="rounded-xl border border-line bg-white px-4 py-2 text-sm disabled:opacity-40">Next</button>
+        </nav>
       )}
 
       {detail && (

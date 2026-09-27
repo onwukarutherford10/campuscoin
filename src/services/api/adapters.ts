@@ -31,9 +31,17 @@ export function categoryFromApi(value: ApiCategory): Category {
 export function budgetFromApi(value: ApiBudget): Budget {
   return {
     id: value.id,
+    categoryId: value.category_id,
     category: value.category_name,
     limit: moneyToNumber(value.amount),
     spent: moneyToNumber(value.spent),
+    remaining: moneyToNumber(value.remaining),
+    percentage: Number(value.percent),
+    status: value.status,
+    year: value.year,
+    month: value.month,
+    nearLimitPercent: value.near_limit_percent,
+    version: value.version,
   };
 }
 
@@ -50,10 +58,13 @@ export function transactionFromApi(value: ApiTransaction) {
     amount: moneyToNumber(value.amount),
     description: value.description,
     merchant: value.merchant,
+    notes: value.notes ?? undefined,
     occurredAt: value.occurred_at,
     source: value.source,
     deletedAt: value.deleted_at,
     recurringRuleId: value.recurring_rule_id,
     version: value.version,
+    createdAt: value.created_at,
+    updatedAt: value.updated_at,
   };
 }

@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, String
+from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -36,4 +36,16 @@ class PasswordResetToken(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+
+
+class EmailVerificationCode(UUIDPrimaryKeyMixin, TimestampMixin, db.Model):
+    __tablename__ = "email_verification_codes"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     used_at: Mapped[datetime | None] = mapped_column(UTCDateTime())

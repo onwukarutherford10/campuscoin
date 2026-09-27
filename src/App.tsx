@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, createBrowserRouter, RouterProvider } from "react-router-dom";
 import LandingPage from "./features/landing/LandingPage";
 import Login from "./features/auth/Login";
@@ -16,20 +17,36 @@ import ProfilePage from "./features/profile/ProfilePage";
 import DashboardLayout from "./layouts/DashboardLayout";
 import RequireAuth from "./auth/RequireAuth";
 import { ToastHost } from "./components/ToastHost";
+import { DATA_MODE } from "./services/api/config.ts";
+import { restoreSession } from "./auth/liveAuth.ts";
+import { LiveFeaturePending } from "./components/LiveFeaturePending.tsx";
+import { useLiveAuth } from "./auth/useLiveAuth.ts";
+import { LiveProfilePage } from "./features/profile/LiveProfilePage.tsx";
 
 
 function ProtectedLayout() {
   return (
     <RequireAuth>
-      <DashboardLayout />
+      <OnboardingGate completed>
+        <DashboardLayout />
+      </OnboardingGate>
     </RequireAuth>
   );
+}
+
+function OnboardingGate({ completed, children }: { completed: boolean; children: React.ReactNode }) {
+  const auth = useLiveAuth();
+  if (DATA_MODE === "mock") return <>{children}</>;
+  if (Boolean(auth.user?.onboarding_completed) !== completed) {
+    return <Navigate to={completed ? "/onboarding" : "/dashboard"} replace />;
+  }
+  return <>{children}</>;
 }
 
 function ProtectedOnboarding() {
   return (
     <RequireAuth>
-      <Onboarding />
+      <OnboardingGate completed={false}><Onboarding /></OnboardingGate>
     </RequireAuth>
   );
 }
@@ -37,7 +54,7 @@ function ProtectedOnboarding() {
 function ProtectedOnboardingComplete() {
   return (
     <RequireAuth>
-      <OnboardingComplete />
+      <OnboardingGate completed><OnboardingComplete /></OnboardingGate>
     </RequireAuth>
   );
 }
@@ -45,7 +62,7 @@ function ProtectedOnboardingComplete() {
 /** Signup verification screen — requires the session created during signup. */
 function ProtectedOtp() {
   return (
-    <RequireAuth>
+    <RequireAuth allowUnverified>
       <OtpPage />
     </RequireAuth>
   );
@@ -67,14 +84,18 @@ const router = createBrowserRouter([
       { path: "/transactions", element: <TransactionsPage /> },
       { path: "/budgets", element: <BudgetsPage /> },
       { path: "/categories", element: <CategoriesPage /> },
-      { path: "/reports", element: <ReportsPage /> },
-      { path: "/settings", element: <ProfilePage /> },
+      { path: "/reports", element: DATA_MODE === "live" ? <LiveFeaturePending title="Reports" /> : <ReportsPage /> },
+      { path: "/settings", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
 function App() {
+  useEffect(() => {
+    if (DATA_MODE === "live") void restoreSession();
+  }, []);
+
   return (
     <>
       <RouterProvider router={router} />

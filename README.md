@@ -4,9 +4,9 @@
 
 Install Node dependencies with `npm ci`, then start the API using the instructions in [`api/README.md`](api/README.md). Run migrations and `flask --app wsgi:app seed-categories` before using an API test account. With the API on port 5000, run `npm run dev`. Vite proxies `/api` to `http://localhost:5000`, so browser requests, cookies, and CSRF use one origin during local development. If port 5000 is occupied, start Flask on another port and set `CAMPUSCOIN_API_PROXY_TARGET=http://localhost:<port>` when starting Vite. The API's `FRONTEND_ORIGINS` defaults to `http://localhost:5173` for direct cross-origin development requests.
 
-The frontend defaults to `VITE_DATA_MODE=mock` in `.env.development` and `.env.production`. The current screens still use local demo data. Setting `VITE_DATA_MODE=live` blocks those screens until they have been migrated, so API failures cannot silently show local financial data. Phase 0 provides the shared client and data contracts; later phases will enable each screen. Set `VITE_API_BASE_URL` to the versioned API root if it differs from `/api/v1`.
+The frontend defaults to `VITE_DATA_MODE=live`. Identity screens use the API; financial and onboarding screens show a protected availability page until their rollout phases are complete. Set `VITE_DATA_MODE=mock` only when intentionally viewing the local demo. Set `VITE_API_BASE_URL` to the versioned API root if it differs from `/api/v1`.
 
-For a local test account, use the API's `/api/v1/auth/csrf` and `/api/v1/auth/register` endpoints or wait for the Phase 1 signup integration. The API seeds categories, not student accounts. Never use the demo account data as server data.
+Signup sends a six-digit verification code through Gmail SMTP. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in `api/.env`. The Gmail account needs 2-Step Verification and an app password. Do not use the regular Gmail password. The API seeds categories, not student accounts.
 
 ## Deployment
 

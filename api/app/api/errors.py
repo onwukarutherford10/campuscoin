@@ -7,6 +7,7 @@ from app.services.auth import AuthError
 from app.services.categories import CategoryError
 from app.services.rate_limit import RateLimitExceeded
 from app.services.transactions import LedgerError
+from app.services.users import ProfileError
 
 
 def register_error_handlers(app: Flask) -> None:
@@ -24,6 +25,10 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(LedgerError)
     def ledger_error(error: LedgerError):
+        return failure(error.code, error.message, status=error.status)
+
+    @app.errorhandler(ProfileError)
+    def profile_error(error: ProfileError):
         return failure(error.code, error.message, status=error.status)
 
     @app.errorhandler(ValidationError)

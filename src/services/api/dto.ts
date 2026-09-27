@@ -14,6 +14,10 @@ export interface ApiUser {
   ai_consent: boolean;
   role: "student" | "admin";
   is_active: boolean;
+  email_verified: boolean;
+  onboarding_completed: boolean;
+  income_source_category_ids: string[];
+  spending_category_ids: string[];
 }
 
 export interface ApiCategory {
@@ -33,11 +37,29 @@ export interface ApiTransaction {
   amount: Money;
   description: string;
   merchant: string | null;
+  notes: string | null;
   occurred_at: string;
   source: string;
   deleted_at: string | null;
   recurring_rule_id: string | null;
   version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiRecurringRule {
+  id: string;
+  category_id: string;
+  type: TransactionType;
+  amount: Money;
+  description: string;
+  merchant: string | null;
+  notes: string | null;
+  frequency: "daily" | "weekly" | "monthly";
+  interval: number;
+  next_due_at: string;
+  ends_at: string | null;
+  is_active: boolean;
 }
 
 export interface ApiBudget {

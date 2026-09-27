@@ -14,7 +14,7 @@ export function FinancialSummaryCard({ summary, onAddIncome, onAddExpense }: Fin
     <section className="rounded-2xl bg-ink p-6 text-white" aria-label="Financial summary">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[13px] text-ink-muted">Current balance</p>
+          <p className="text-[13px] text-ink-muted">Net balance this month</p>
           <p className="mt-1 text-4xl font-semibold tracking-tight">{formatNaira(summary.balance)}</p>
 
           <dl className="mt-6 flex flex-wrap gap-x-10 gap-y-4">
@@ -27,7 +27,7 @@ export function FinancialSummaryCard({ summary, onAddIncome, onAddExpense }: Fin
               <dd className="mt-0.5 text-lg font-medium text-white">{formatNaira(summary.expenses)}</dd>
             </div>
             <div>
-              <dt className="text-[13px] text-ink-muted">Savings</dt>
+              <dt className="text-[13px] text-ink-muted">Available after expenses</dt>
               <dd className="mt-0.5 text-lg font-medium text-white">{formatNaira(summary.savings)}</dd>
             </div>
             {summary.savingsGoal !== null && summary.savingsGoal > 0 && (
@@ -40,7 +40,7 @@ export function FinancialSummaryCard({ summary, onAddIncome, onAddExpense }: Fin
                     <span
                       className="block h-full rounded-full bg-mint"
                       style={{
-                        width: `${Math.min((summary.savings / summary.savingsGoal) * 100, 100)}%`,
+                        width: `${Math.max(0, Math.min((summary.savings / summary.savingsGoal) * 100, 100))}%`,
                       }}
                     />
                   </span>

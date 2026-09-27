@@ -9,8 +9,8 @@ interface BudgetRowProps {
   onDelete: () => void;
 }
 
-function statusOf(percentage: number) {
-  if (percentage > 100) {
+function statusOf(apiStatus: Budget["status"], percentage: number) {
+  if (apiStatus === "exceeded" || (!apiStatus && percentage > 100)) {
     return {
       label: "Exceeded",
       textClass: "text-red-600",
@@ -19,7 +19,7 @@ function statusOf(percentage: number) {
       icon: CircleAlert,
     };
   }
-  if (percentage >= 80) {
+  if (apiStatus === "near_limit" || (!apiStatus && percentage >= 80)) {
     return {
       label: "Near limit",
       textClass: "text-amber-600",
@@ -39,9 +39,9 @@ function statusOf(percentage: number) {
 
 /** One budget with progress, a labelled status (never colour alone) and actions. */
 export function BudgetRow({ budget, onEdit, onDelete }: BudgetRowProps) {
-  const percentage = budget.limit === 0 ? 0 : (budget.spent / budget.limit) * 100;
-  const remaining = budget.limit - budget.spent;
-  const status = statusOf(percentage);
+  const percentage = budget.percentage ?? (budget.limit === 0 ? 0 : (budget.spent / budget.limit) * 100);
+  const remaining = budget.remaining ?? budget.limit - budget.spent;
+  const status = statusOf(budget.status, percentage);
   const StatusIcon = status.icon;
   const Icon = CATEGORY_ICONS[budget.category] ?? FALLBACK_ICON;
 
