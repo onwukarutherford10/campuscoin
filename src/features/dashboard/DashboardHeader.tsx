@@ -73,7 +73,7 @@ export function DashboardHeader({ onOpenMenu, alerts = [], onRead, onDismiss }: 
               <Bell size={17} />
               {unreadCount > 0 && <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
             </summary>
-            <div className="absolute right-0 top-12 max-h-[70vh] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-line bg-white p-4 shadow-xl">
+            <div className="absolute right-0 top-12 w-[min(25rem,calc(100vw-2rem))]">
               <NotificationsPanel alerts={alerts} onRead={onRead} onDismiss={onDismiss} />
             </div>
           </details>

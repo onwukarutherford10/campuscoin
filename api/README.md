@@ -208,6 +208,13 @@ active templates appear in saving tips and respect each student's pin/bookmark/d
 Run `flask --app wsgi:app db upgrade` to create the `system_content` table before using them.
 See the [OpenAPI specification](openapi.yaml) and the root [README](../README.md) for
 installation and the AI-use acknowledgement.
+Start Flask, then open [Swagger UI directly](http://127.0.0.1:5000/api/docs) or
+[through Vite](http://localhost:5173/api/docs) to browse the endpoints. On macOS,
+`localhost:5000` may be answered by AirPlay rather than Flask.
+The raw specification is served at `/api/openapi.yaml`. Swagger UI loads its browser assets from
+a pinned CDN release, so the docs page needs internet access. Sign in through the Swagger admin
+login operation (or the app) before trying protected routes; the docs page obtains a CSRF token
+automatically for mutations. Do not expose evaluation credentials in the specification.
 
 ## Category suggestions
 
