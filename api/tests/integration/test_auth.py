@@ -247,18 +247,18 @@ def test_login_rotation_and_reuse_rejection(client):
 def test_password_reset_is_single_use_and_revokes_sessions(client):
     register(client)
     response = post(client, "/api/v1/auth/password/forgot", {"email": "student@example.com"})
-    token = response.get_json()["meta"]["reset_token"]
+    code = response.get_json()["meta"]["reset_code"]
     reset = post(
         client,
         "/api/v1/auth/password/reset",
-        {"token": token, "password": "new-secure-password"},
+        {"email": "student@example.com", "code": code, "password": "new-secure-password"},
     )
     assert reset.status_code == 200
     assert client.get("/api/v1/users/me").status_code == 401
     reused = post(
         client,
         "/api/v1/auth/password/reset",
-        {"token": token, "password": "another-password"},
+        {"email": "student@example.com", "code": code, "password": "another-password"},
     )
     assert reused.status_code == 400
 

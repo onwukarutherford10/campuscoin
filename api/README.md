@@ -132,14 +132,19 @@ imports are completed, then poll their `/api/v1/jobs/{id}` status URL.
 
 All application datetimes are normalized to UTC before storage in MySQL `DATETIME(6)` and
 returned with `+00:00`. Monetary values use `NUMERIC`/`DECIMAL` and Python `Decimal`; APIs expose
-two-decimal strings. In tests, password reset tokens appear in response metadata; production
+two-decimal strings. In tests, password reset codes appear in response metadata; production
 never exposes them.
 
 ### Gmail email delivery
 
-Account verification uses a six-digit code sent after registration. Password recovery sends a
-tokenized link back to the frontend. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, `SMTP_FROM`,
-and `FRONTEND_BASE_URL`; production startup rejects missing mail credentials. Use a dedicated
+Account verification and password recovery each send a six-digit, single-use code in branded
+HTML and plain-text email. `POST /api/v1/auth/password/forgot` accepts an email and gives the
+same response for known and unknown accounts. The reset screen sends `email`, `code`, and
+`password` to `POST /api/v1/auth/password/reset`. Codes expire after 10 minutes by default,
+have five attempts, and are subject to a 30-second resend cooldown and endpoint rate limits.
+Successful reset revokes existing sessions. Legacy tokenized resets remain accepted for
+already-issued tokens. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM`;
+production startup rejects missing mail credentials. Use a dedicated
 Gmail or Google Workspace account with 2-Step Verification and a Gmail app password. Do not put
 the normal Google account password in the environment. The default connection is
 `smtp.gmail.com:465` over TLS.
@@ -148,6 +153,9 @@ Authenticated but unverified students can call `POST /api/v1/auth/email/resend` 
 `POST /api/v1/auth/email/verify`. Other protected student endpoints return
 `email_verification_required` until verification succeeds. Existing accounts are marked verified
 when the verification migration is applied.
+
+Run `flask --app wsgi:app db upgrade` to add the MySQL reset-attempt column. The dashboard
+has accessible breadcrumbs and a persistent light/dark switch; neither changes financial data.
 
 ## Budgets, dashboard, tips, reports, and exports (Phase 4)
 

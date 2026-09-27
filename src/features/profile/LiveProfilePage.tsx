@@ -9,15 +9,18 @@ import type { ApiUser } from "../../services/api/dto";
 import { toServiceError } from "../../services/api/errors";
 import { updateLiveProfile } from "../../auth/liveAuth";
 import { toast } from "../../services/toast";
+import { ThemeSettings } from "./ThemeSettings";
 
 interface LayoutContext {
   openMenu: () => void;
+  darkMode: boolean;
+  toggleTheme: () => void;
 }
 
 const inputClass = "mt-1.5 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand disabled:bg-gray-50 disabled:text-gray-500";
 
 export function LiveProfilePage() {
-  const { openMenu } = useOutletContext<LayoutContext>();
+  const { openMenu, darkMode, toggleTheme } = useOutletContext<LayoutContext>();
   const [profile, setProfile] = useState<ApiUser | null>(null);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -131,6 +134,7 @@ export function LiveProfilePage() {
               </label>
             </div>
           </Card>
+          <ThemeSettings darkMode={darkMode} onToggle={toggleTheme} />
           <Card title="Close account" className="lg:col-span-3 border border-red-100">
             <p className="text-sm text-gray-600">Self-service account closure is not available yet. No local-only deletion will be reported as account closure.</p>
             <button type="button" disabled className="mt-4 rounded-xl border border-red-100 px-5 py-2.5 text-sm font-medium text-red-300">Close account unavailable</button>

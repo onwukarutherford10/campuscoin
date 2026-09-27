@@ -11,6 +11,7 @@ from app.extensions import db
 from app.models import EmailVerificationCode
 from app.services.auth import AuthError
 from app.services.email.sender import send_email
+from app.services.email.templates import otp_message
 from app.utils.time import as_utc, utcnow
 
 
@@ -45,13 +46,10 @@ def send_verification_code(user) -> None:
     db.session.add(record)
     db.session.flush()
     try:
-        send_email(
-            user.email,
-            "Your CampusCoin verification code",
-            f"Your CampusCoin verification code is {code}. It expires in "
-            f"{int(current_app.config['EMAIL_CODE_TTL'].total_seconds() // 60)} minutes.\n"
-            "If you did not create this account, ignore this message.",
+        subject, plain, html = otp_message(
+            "verify", code, int(current_app.config["EMAIL_CODE_TTL"].total_seconds() // 60)
         )
+        send_email(user.email, subject, plain, html=html)
     except Exception:
         db.session.rollback()
         raise
