@@ -177,6 +177,32 @@ directly. Larger exports return a `202` database job. Run
 `GET /api/v1/jobs/{id}`, then follow its `download_url`. Export contents are user-scoped.
 `GET /api/v1/admin/usage` returns aggregate counts only.
 
+## Optional category suggestions (Phase 5)
+
+The Settings switch saves `ai_consent` through `PATCH /api/v1/users/me` and is off by
+default. A student requests a suggestion explicitly; suggestions never create or edit a
+transaction. `POST /api/v1/categories/suggest` accepts `transaction_type`, `description`,
+and optional `merchant`; `/suggest/batch` accepts up to 20 such objects. The response
+contains `category_id` (or `null` for manual selection), `confidence`, `source`, and a
+short rationale. `POST /api/v1/categories/suggest/feedback` accepts those input fields,
+the final `category_id`, and optional `suggested_category_id` after the user saves.
+Corrections are account-specific and override rules. Rules run before Luna; opt-out,
+missing API credentials, outages, or quotas leave manual entry available.
+
+Set `OPENAI_API_KEY` only on the backend to enable external calls. `AI_CATEGORIZATION_MODEL`
+defaults to `gpt-6-luna`. `AI_DAILY_QUOTA`, `AI_MONTHLY_QUOTA`, and
+`AI_MONTHLY_SPEND_CEILING_USD` limit calls; `AI_RESERVED_COST_USD` conservatively reserves
+budget per call. Tune the reservation to exceed expected cost per request. Description
+and merchant are shortened and common identifiers redacted before submission; only
+hashes, category IDs, token counts, and quota records are persisted. The provider call
+uses strict JSON Schema restricted to active category IDs and `store=false`. No raw
+transaction description or provider response is logged. Disable the switch to stop all
+external submissions immediately; local rules and correction memory remain available.
+
+After deployment, run `flask --app wsgi:app db upgrade` to add the MySQL InnoDB/utf8mb4
+tables for corrections, cache, and quota accounting. Never expose the API key in Vite
+environment variables or browser code.
+
 ## Backup and restore
 
 Back up the local development database before migrations. Restore only to the intended local

@@ -106,6 +106,7 @@ export async function updateLiveProfile(changes: Partial<{
   savings_goal: string;
   currency: string;
   timezone: string;
+  ai_consent: boolean;
   income_source_category_ids: string[];
   spending_category_ids: string[];
   onboarding_completed: boolean;

@@ -1,3 +1,4 @@
+from app.models.ai import AISuggestionUsage, CategoryCorrection, CategorySuggestionCache
 from app.models.auth import AuthSession, EmailVerificationCode, PasswordResetToken
 from app.models.category import Category, CategoryType
 from app.models.job import Job, JobStatus, JobType
@@ -16,6 +17,9 @@ from app.models.user import OnboardingCategoryPreference, OnboardingPreferenceKi
 
 __all__ = [
     "AuditLog",
+    "AISuggestionUsage",
+    "CategoryCorrection",
+    "CategorySuggestionCache",
     "AuthSession",
     "EmailVerificationCode",
     "Category",
