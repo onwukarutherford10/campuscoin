@@ -20,3 +20,9 @@ def test_seed_commands_are_idempotent(app):
     assert runner.invoke(args=args).exit_code == 0
     with app.app_context():
         assert db.session.query(User).filter_by(email="root@example.com").count() == 1
+
+
+def test_csv_import_worker_command_is_available(app):
+    result = app.test_cli_runner().invoke(args=["process-csv-imports", "--limit", "1"])
+    assert result.exit_code == 0
+    assert result.output == "Processed 0 CSV imports\n"

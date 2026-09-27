@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { FileDown, FileImage, Upload } from "lucide-react";
 import type { ReportData, ReportFilters, SavingTip } from "../../types";
@@ -8,7 +8,7 @@ import {
   dismissTip,
   removeSavedTip,
 } from "../../services/tipsService";
-import { exportReportImage, exportReportPdf, type ExportPayload } from "../../services/reportExport";
+import { exportReport, type ExportPayload } from "../../services/reportExport";
 import { useCategories } from "../../hooks/useCategories";
 import PageHeader from "../../components/PageHeader";
 import { Card, EmptyState, ErrorState } from "../../components/StateViews";
@@ -23,6 +23,7 @@ import InsightCard from "./InsightCard";
 import PastInsightsCard from "./PastInsightsCard";
 import TipsSection from "./TipsSection";
 import CsvImportModal from "./CsvImportModal";
+import { DATA_MODE } from "../../services/api/config";
 
 interface LayoutContext {
   openMenu: () => void;
@@ -63,6 +64,7 @@ export function ReportsPage() {
   const [requestId, setRequestId] = useState(0);
   const [tipsBusy, setTipsBusy] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState<"pdf" | "png" | null>(null);
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -114,6 +116,8 @@ export function ReportsPage() {
       await action();
       toast.success(message);
       reload();
+    } catch (actionError) {
+      toast.error(actionError instanceof Error ? actionError.message : "We couldn't update that tip.");
     } finally {
       setTipsBusy(false);
     }
@@ -134,21 +138,17 @@ export function ReportsPage() {
     };
   }
 
-  function handleExportPdf(event: MouseEvent) {
-    event.preventDefault();
+  async function handleExport(format: "pdf" | "png") {
     const payload = buildPayload();
-    if (payload) {
-      exportReportPdf(payload);
-      toast.success("Report downloaded as PDF.");
-    }
-  }
-
-  function handleExportImage(event: MouseEvent) {
-    event.preventDefault();
-    const payload = buildPayload();
-    if (payload) {
-      exportReportImage(payload);
-      toast.success("Report downloaded as an image.");
+    if (!payload) return;
+    setExporting(format);
+    try {
+      await exportReport(format, filters, categories, payload);
+      toast.success(`Report downloaded as ${format.toUpperCase()}.`);
+    } catch (exportError) {
+      toast.error(exportError instanceof Error ? exportError.message : "We couldn't export that report.");
+    } finally {
+      setExporting(null);
     }
   }
 
@@ -186,24 +186,24 @@ export function ReportsPage() {
             </button>
             <button
               type="button"
-              onClick={handleExportPdf}
-              disabled={!data}
+              onClick={() => void handleExport("pdf")}
+              disabled={!data || exporting !== null}
               className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
             >
               <span className="flex items-center gap-2">
                 <FileDown size={15} />
-                Export PDF
+                {exporting === "pdf" ? "Preparing…" : "Export PDF"}
               </span>
             </button>
             <button
               type="button"
-              onClick={handleExportImage}
-              disabled={!data}
+              onClick={() => void handleExport("png")}
+              disabled={!data || exporting !== null}
               className="rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
             >
               <span className="flex items-center gap-2">
                 <FileImage size={15} />
-                Export image
+                {exporting === "png" ? "Preparing…" : "Export image"}
               </span>
             </button>
           </>
@@ -282,20 +282,25 @@ export function ReportsPage() {
             tips={data.tips}
             savedTips={data.savedTips}
             busy={tipsBusy}
-            onBookmark={(tip) => runTipAction(() => bookmarkTip(tip), "Tip saved for later.")}
+            onBookmark={(tip) => runTipAction(
+              () => bookmarkTip(tip),
+              tip.bookmarked ? "Removed from saved tips." : "Tip saved for later.",
+            )}
             onDismiss={(tip) => runTipAction(() => dismissTip(tip), "Tip dismissed. Point taken.")}
             onRemoveSaved={(id) => runTipAction(() => removeSavedTip(id), "Removed from saved tips.")}
           />
 
-          <div className="lg:col-span-3">
-            <PastInsightsCard insights={data.pastInsights} />
-          </div>
+          {DATA_MODE === "mock" && (
+            <div className="lg:col-span-3">
+              <PastInsightsCard insights={data.pastInsights} />
+            </div>
+          )}
         </div>
       )}
 
       {activeFilters && data && data.hasTransactions && !noMatches && (
         <p className="mt-4 text-center text-[12px] text-gray-400">
-          Charts above follow your filters; the six-month trend always shows all activity.
+          The summary and category breakdown follow your filters. Current-month and six-month cards keep their stated periods.
         </p>
       )}
 

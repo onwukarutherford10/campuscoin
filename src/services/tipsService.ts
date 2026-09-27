@@ -11,6 +11,10 @@ import { readTransactionsSync } from "./transactionService";
 import { delay, loadJSON, saveJSON } from "./store";
 import { formatNaira, formatPercent } from "../utils/format";
 import { recentAverageExpenses } from "./trend";
+import { DATA_MODE } from "./api/config";
+import { api } from "./api";
+import type { ApiTip } from "./api/dto";
+import { moneyToNumber } from "./api/adapters";
 
 const STATE_KEY = "campuscoin.tipState";
 
@@ -31,6 +35,23 @@ function readState(): TipState {
 
 function writeState(state: TipState): void {
   saveJSON(STATE_KEY, state);
+}
+
+function tipFromApi(tip: ApiTip): SavingTip {
+  const estimatedSavings = moneyToNumber(tip.estimated_savings);
+  return {
+    id: tip.key,
+    title: estimatedSavings > 0 ? `Potential saving: ${formatNaira(estimatedSavings)}` : "Saving suggestion",
+    body: tip.message,
+    estimatedSavings,
+    pinned: tip.pinned,
+    bookmarked: tip.bookmarked,
+  };
+}
+
+async function liveTips(): Promise<SavingTip[]> {
+  const response = await api.request<ApiTip[]>("/tips");
+  return response.data.map(tipFromApi);
 }
 
 function sumOf(transactions: Transaction[], type: Transaction["type"]): number {
@@ -130,6 +151,7 @@ export function buildTips(
 
 /** Current tips minus anything the student dismissed. */
 export async function listTips(): Promise<SavingTip[]> {
+  if (DATA_MODE === "live") return liveTips();
   const transactions = readTransactionsSync();
   const budgets = await listBudgets();
   const profile = loadOnboardingData();
@@ -147,10 +169,15 @@ export async function getDashboardTip(): Promise<SavingTip | null> {
 }
 
 export async function listSavedTips(): Promise<SavingTip[]> {
+  if (DATA_MODE === "live") return (await liveTips()).filter((tip) => tip.bookmarked);
   return delay(readState().saved);
 }
 
 export async function bookmarkTip(tip: SavingTip): Promise<SavingTip[]> {
+  if (DATA_MODE === "live") {
+    await api.request(`/tips/${encodeURIComponent(tip.id)}/bookmark`, { method: "POST", body: {} });
+    return listSavedTips();
+  }
   const state = readState();
   if (!state.saved.some((entry) => entry.id === tip.id)) {
     state.saved = [...state.saved, tip];
@@ -160,6 +187,10 @@ export async function bookmarkTip(tip: SavingTip): Promise<SavingTip[]> {
 }
 
 export async function removeSavedTip(id: string): Promise<SavingTip[]> {
+  if (DATA_MODE === "live") {
+    await api.request(`/tips/${encodeURIComponent(id)}/bookmark`, { method: "POST", body: {} });
+    return listSavedTips();
+  }
   const state = readState();
   state.saved = state.saved.filter((entry) => entry.id !== id);
   writeState(state);
@@ -168,6 +199,10 @@ export async function removeSavedTip(id: string): Promise<SavingTip[]> {
 
 /** Dismissed tips do not return to the list until the state is reset. */
 export async function dismissTip(tip: SavingTip): Promise<SavingTip[]> {
+  if (DATA_MODE === "live") {
+    await api.request(`/tips/${encodeURIComponent(tip.id)}/dismiss`, { method: "POST", body: {} });
+    return listSavedTips();
+  }
   const state = readState();
   if (!state.dismissed.includes(tip.id)) {
     state.dismissed = [...state.dismissed, tip.id];

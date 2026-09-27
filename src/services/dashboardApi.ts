@@ -109,7 +109,14 @@ async function getLiveDashboardData(): Promise<DashboardData> {
       })),
     },
     budgets: dashboard.budgets.map(budgetFromApi),
-    tip: dashboard.tips[0] ? { id: dashboard.tips[0].key, title: "A way to save", body: dashboard.tips[0].message } : null,
+    tip: dashboard.tips[0] ? {
+      id: dashboard.tips[0].key,
+      title: "A way to save",
+      body: dashboard.tips[0].message,
+      estimatedSavings: moneyToNumber(dashboard.tips[0].estimated_savings),
+      pinned: dashboard.tips[0].pinned,
+      bookmarked: dashboard.tips[0].bookmarked,
+    } : null,
     insight: null,
     trend: reportResponses.map((response, index) => ({
       label: months[index].label,

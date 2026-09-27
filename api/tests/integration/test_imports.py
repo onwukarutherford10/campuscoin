@@ -1,5 +1,8 @@
 from tests.integration.test_auth import post, register
 from tests.integration.test_transactions import make_category
+from app.extensions import db
+from app.models import Job, JobStatus
+from app.services.imports import ImportService
 
 CSV = """date,amount,description,type,category,merchant
 2026-09-20T12:00:00+01:00,12.50,Lunch,expense,Food,Cafe
@@ -56,3 +59,9 @@ def test_large_csv_import_returns_owned_job(app):
     job = response.get_json()["data"]
     assert client.get(job["status_url"]).status_code == 200
     assert other.get(job["status_url"]).status_code == 404
+    with app.app_context():
+        assert ImportService().process_pending() == 1
+        stored = db.session.get(Job, __import__("uuid").UUID(job["job_id"]))
+        assert stored.status == JobStatus.SUCCEEDED
+        assert stored.result["imported"] == 2
+    assert client.get("/api/v1/transactions").get_json()["meta"]["total"] == 2

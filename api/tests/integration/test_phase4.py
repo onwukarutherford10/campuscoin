@@ -97,6 +97,9 @@ def test_reports_and_exports_match_ledger(app):
         }
     )
     assert client.get(f"/api/v1/reports?{income_query}").get_json()["data"]["income"] == "100.00"
+    typed = client.get(f"/api/v1/reports?{query}&type=income").get_json()["data"]
+    assert (typed["income"], typed["expenses"], typed["transaction_count"]) == ("100.00", "0.00", 1)
+    assert client.get(f"/api/v1/reports?{query}&type=invalid").status_code == 400
     payload = {
         "period": "range",
         "start": (start - timedelta(days=1)).isoformat(),

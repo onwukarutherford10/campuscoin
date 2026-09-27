@@ -146,7 +146,13 @@ export interface ApiJob {
   type: string;
   status: string;
   status_url: string;
-  result: { download_url?: string; export_id?: string } | null;
+  result: {
+    download_url?: string;
+    export_id?: string;
+    import_id?: string;
+    imported?: number;
+    skipped_duplicates?: number;
+  } | null;
   error: string | null;
 }
 

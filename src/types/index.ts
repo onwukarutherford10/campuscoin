@@ -148,6 +148,9 @@ export interface SavingTip {
   id: string;
   title: string;
   body: string;
+  estimatedSavings?: number;
+  pinned?: boolean;
+  bookmarked?: boolean;
 }
 
 export interface TrendPoint {
