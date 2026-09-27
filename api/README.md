@@ -71,6 +71,20 @@ flask --app wsgi:app run --port 5000
 Run `flask --app wsgi:app db upgrade` and `seed-categories` again to verify idempotency. An
 existing administrator is preserved by `seed-admin`; it does not change that user's password.
 
+To recover an existing administrator account, configure `SMTP_HOST`, `SMTP_PORT`,
+`SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in the ignored `.env` file and confirm
+that the `ADMIN_EMAIL` mailbox can receive mail. For Gmail SMTP, use 2-Step Verification and
+an app password, not the account password. Start Flask and the frontend, open `/admin`, choose
+**Forgot password?**, enter `ADMIN_EMAIL`, then verify the emailed six-digit code. Only after
+verification does the new-password form appear. It returns to `/admin` for sign-in. Codes expire after 10 minutes; repeat
+requests have a cooldown. Admin recovery always calls the live API, even when the student demo
+uses mock mode. Passwords cannot be retrieved from database hashes. Never print or commit
+SMTP credentials, codes, or `.env`.
+
+If a reset email still contains a link, restart the running Flask process after pulling the
+OTP implementation. A Flask process started before the code change keeps serving the old
+handler. The current email contains a branded six-digit code, not a reset link.
+
 ## Tests and database safety
 
 ```bash

@@ -4,7 +4,7 @@ import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { z } from "zod";
 import { toast } from "../../services/toast";
 import AuthShell from "./AuthShell";
-import { resetPassword } from "../../auth/liveAuth.ts";
+import { resetPassword, verifyPasswordResetCode } from "../../auth/liveAuth.ts";
 import { toServiceError } from "../../services/api/errors.ts";
 import { DATA_MODE } from "../../services/api/config.ts";
 
@@ -33,8 +33,12 @@ function ResetPassword() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const adminRecovery = searchParams.get("admin") === "1";
+  const loginPath = adminRecovery ? "/admin" : "/login";
+  const requestAgainPath = adminRecovery ? "/forgetpassword?admin=1" : "/forgetpassword";
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [code, setCode] = useState("");
+  const [codeVerified, setCodeVerified] = useState(false);
   const demoCode = (location.state as { demoCode?: string } | null)?.demoCode;
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,6 +52,28 @@ function ResetPassword() {
   const hasNumberOrSymbol = /[0-9!@#$%^&*]/.test(newPassword);
   const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
   const showRequirements = newPassword.length > 0;
+
+  async function handleVerifyCode(event: FormEvent) {
+    event.preventDefault();
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrors({ form: "Enter the email address you requested the code for." });
+      return;
+    }
+    if (!/^[0-9]{6}$/.test(code)) {
+      setErrors({ form: "Enter the six-digit code from your email." });
+      return;
+    }
+    setSubmitting(true);
+    setErrors({});
+    try {
+      await verifyPasswordResetCode(email.trim(), code);
+      setCodeVerified(true);
+    } catch (cause) {
+      setErrors({ form: toServiceError(cause).error });
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -71,7 +97,7 @@ function ResetPassword() {
     }
     setSubmitting(true);
     try {
-      if (DATA_MODE === "live") {
+      if (DATA_MODE === "live" || adminRecovery) {
         await resetPassword(email.trim(), code, result.data.newPassword);
       } else {
         const saved = sessionStorage.getItem("cc.demoResetCode");
@@ -80,10 +106,11 @@ function ResetPassword() {
         sessionStorage.removeItem("cc.demoResetCode");
       }
       toast.success("Password updated. Sign in with your new password.");
-      navigate("/login", { replace: true });
+      navigate(loginPath, { replace: true });
     } catch (requestError) {
       const failure = toServiceError(requestError);
-      setErrors({ ...failure.errors, form: DATA_MODE === "mock" ? "That demo code isn't right." : failure.error });
+      if (adminRecovery) setCodeVerified(false);
+      setErrors({ ...failure.errors, form: DATA_MODE === "mock" && !adminRecovery ? "That demo code isn't right." : failure.error });
     } finally {
       setSubmitting(false);
     }
@@ -91,31 +118,36 @@ function ResetPassword() {
 
   return (
     <AuthShell
-      title="Choose a new password"
-      subtitle="Enter the code we emailed you, then choose a new password. Codes expire after 10 minutes."
-      backTo="/forgetpassword"
+      title={adminRecovery && !codeVerified ? "Verify your reset code" : "Choose a new password"}
+      subtitle={adminRecovery && !codeVerified
+        ? "Enter the six-digit code we emailed you. Codes expire after 10 minutes."
+        : "Choose a new password for your account."}
+      backTo={requestAgainPath}
       backLabel="Back"
       art={{ src: "/art/auth-art.jpg", alt: "Student using a smartphone on campus" }}
       footer={
         <p>
           Changed your mind?{" "}
-          <Link to="/login" className="font-medium text-brand-dark underline">
+          <Link to={loginPath} className="font-medium text-brand-dark underline">
             Back to login
           </Link>
         </p>
       }
     >
-      <form onSubmit={handleSubmit} className="mt-7">
-        {DATA_MODE === "mock" && demoCode && (
+      <form onSubmit={adminRecovery && !codeVerified ? handleVerifyCode : handleSubmit} className="mt-7">
+        {DATA_MODE === "mock" && !adminRecovery && demoCode && (
           <p className="mb-5 rounded-xl bg-brand-soft/50 p-3 text-sm text-brand-dark">Demo code: <strong className="tracking-widest">{demoCode}</strong></p>
         )}
-        <label htmlFor="resetEmail" className={labelClass}>Email address</label>
-        <input id="resetEmail" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} />
+        {(!adminRecovery || !codeVerified) ? <>
+          <label htmlFor="resetEmail" className={labelClass}>Email address</label>
+          <input id="resetEmail" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} />
 
-        <label htmlFor="resetCode" className={`mt-5 ${labelClass}`}>Six-digit code</label>
-        <input id="resetCode" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} className={`${inputClass} text-center text-lg font-semibold tracking-[0.3em]`} />
-        <p className="mt-1 text-xs text-gray-500">Didn't receive it? <Link to="/forgetpassword" className="font-medium text-brand-dark underline">Request another code</Link>.</p>
+          <label htmlFor="resetCode" className={`mt-5 ${labelClass}`}>Six-digit code</label>
+          <input id="resetCode" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} className={`${inputClass} text-center text-lg font-semibold tracking-[0.3em]`} />
+          <p className="mt-1 text-xs text-gray-500">Didn't receive it? <Link to={requestAgainPath} className="font-medium text-brand-dark underline">Request another code</Link>.</p>
+        </> : <p role="status" className="rounded-xl bg-brand-soft p-3 text-sm text-brand-dark">Code verified for {email}. You can now choose a new password.</p>}
 
+        {(!adminRecovery || codeVerified) && <>
         <label htmlFor="newPassword" className={`mt-5 ${labelClass}`}>
           New password
         </label>
@@ -185,6 +217,7 @@ function ResetPassword() {
             ))}
           </ul>
         )}
+        </>}
 
         <button
           type="submit"
@@ -192,7 +225,7 @@ function ResetPassword() {
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-70"
         >
           {submitting && <Loader2 size={16} className="animate-spin" />}
-          {submitting ? "Updating…" : "Update password"}
+          {submitting ? (adminRecovery && !codeVerified ? "Verifying…" : "Updating…") : (adminRecovery && !codeVerified ? "Verify code" : "Update password")}
         </button>
       </form>
     </AuthShell>

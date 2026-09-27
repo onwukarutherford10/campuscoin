@@ -25,6 +25,10 @@ def test_otp_emails_have_branded_html_and_plain_fallback(client):
     assert "reset" in reset_mail["subject"].lower()
     assert "<table" in reset_mail["html"]
     assert "token=" not in reset_mail["body"]
+    assert "http://" not in reset_mail["body"]
+    assert "https://" not in reset_mail["body"]
+    assert "http://" not in reset_mail["html"]
+    assert "https://" not in reset_mail["html"]
     with client.application.app_context():
         record = db.session.query(PasswordResetToken).first()
         assert code not in record.token_hash

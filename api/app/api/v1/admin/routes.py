@@ -117,11 +117,13 @@ def revoke_sessions(user_id: uuid.UUID):
 @auth_required(admin=True)
 def initiate_reset(user_id: uuid.UUID):
     user = UserRepository().get(user_id)
-    token = AuthService().create_password_reset(
-        user.email if user else "missing@example.invalid", actor_id=g.current_user.id
+    code = AuthService().send_password_reset_code(user.email) if user else None
+    record_audit(
+        "admin.password_reset_initiated", actor_id=g.current_user.id, target_user_id=user_id
     )
-    meta = {"reset_token": token} if current_app.testing and token else None
-    return success({"initiated": user is not None}, meta=meta)
+    db.session.commit()
+    meta = {"reset_code": code} if current_app.testing and code else None
+    return success({"initiated": bool(code)}, meta=meta)
 
 
 @admin.post("/categories")

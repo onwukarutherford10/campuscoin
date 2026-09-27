@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import AuthShell from "./AuthShell";
@@ -16,6 +16,9 @@ export type ForgetPasswordValues = z.infer<typeof forgetPasswordSchema>;
 /** Step one of recovery: confirm the email, then set a new password. */
 function ForgetPassword() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const adminRecovery = searchParams.get("admin") === "1";
+  const loginPath = adminRecovery ? "/admin" : "/login";
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,13 +34,14 @@ function ForgetPassword() {
     setError("");
     setSubmitting(true);
     try {
-      if (DATA_MODE === "live") {
+      const destination = `/resetpassword?email=${encodeURIComponent(result.data.email)}${adminRecovery ? "&admin=1" : ""}`;
+      if (DATA_MODE === "live" || adminRecovery) {
         await requestPasswordReset(result.data.email);
-        navigate(`/resetpassword?email=${encodeURIComponent(result.data.email)}`);
+        navigate(destination);
       } else {
         const demoCode = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
         sessionStorage.setItem("cc.demoResetCode", JSON.stringify({ email: result.data.email, code: demoCode }));
-        navigate(`/resetpassword?email=${encodeURIComponent(result.data.email)}`, { state: { demoCode } });
+        navigate(destination, { state: { demoCode } });
       }
     } catch (requestError) {
       setError(toServiceError(requestError).error);
@@ -50,13 +54,13 @@ function ForgetPassword() {
     <AuthShell
       title="Reset your password"
       subtitle="Enter the email you signed up with. If an account exists, we'll send a six-digit reset code."
-      backTo="/login"
+      backTo={loginPath}
       backLabel="Back to login"
       art={{ src: "/art/auth-art.jpg", alt: "Student using a smartphone on campus" }}
       footer={
         <p>
           Remembered it?{" "}
-          <Link to="/login" className="font-medium text-brand-dark underline">
+          <Link to={loginPath} className="font-medium text-brand-dark underline">
             Back to login
           </Link>
         </p>
