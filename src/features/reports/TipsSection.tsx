@@ -38,7 +38,7 @@ export function TipsSection({ tips, savedTips, busy, onBookmark, onDismiss, onRe
                       onClick={() => onBookmark(tip)}
                       className="rounded-lg p-1.5 text-gray-500 transition hover:bg-white hover:text-brand-dark disabled:opacity-50"
                     >
-                      <Bookmark size={15} />
+                      {tip.bookmarked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
                     </button>
                     <button
                       type="button"
@@ -58,11 +58,11 @@ export function TipsSection({ tips, savedTips, busy, onBookmark, onDismiss, onRe
         )}
       </Card>
 
-      <Card title="Saved tips">
+      <Card title="Saved current tips">
         {savedTips.length === 0 ? (
           <EmptyState
             title="Nothing saved yet"
-            description="Bookmark a tip above to keep it here for later."
+            description="Bookmark a current tip to keep it visible while it remains relevant."
           />
         ) : (
           <ul className="space-y-3">

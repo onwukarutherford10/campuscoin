@@ -126,7 +126,9 @@ Transaction CRUD, filters, pagination, revision history, restore, and recent act
 `/api/v1/transactions`. Recurring rules live at `/api/v1/recurring-transactions`; due instances
 are generated on ledger reads or by `flask --app wsgi:app materialize-recurring`. CSV imports use
 preview/confirm under `/api/v1/transactions/imports`; invalid rows have a downloadable
-`errors_url`. Large imports return an owned database job for the later job processor.
+`errors_url`. Large imports return an owned database job. Run
+`flask --app wsgi:app process-csv-imports` continuously or on a frequent scheduler so queued
+imports are completed, then poll their `/api/v1/jobs/{id}` status URL.
 
 All application datetimes are normalized to UTC before storage in MySQL `DATETIME(6)` and
 returned with `+00:00`. Monetary values use `NUMERIC`/`DECIMAL` and Python `Decimal`; APIs expose
@@ -165,8 +167,9 @@ savings are advisory and use exact decimal arithmetic, not AI.
 
 `GET /api/v1/reports` accepts `period=daily|weekly|monthly|six_months|range|category|income_source`.
 Monthly and six-month periods accept `year` and `month`; range, category, and income-source
-periods require timezone-aware ISO-8601 `start` and `end`. `category_id` optionally narrows
-any period. Totals exclude soft-deleted transactions; `income_source` includes income only.
+periods require timezone-aware ISO-8601 `start` and `end`. `category_id` and
+`type=income|expense` optionally narrow any period. Totals exclude soft-deleted transactions;
+`income_source` includes income only.
 `POST /api/v1/reports/exports` accepts the same filters plus `format=pdf|png`. Reports
 with at most `REPORT_SYNC_TRANSACTION_LIMIT` transactions (default 500) return the file
 directly. Larger exports return a `202` database job. Run

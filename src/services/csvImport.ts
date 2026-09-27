@@ -9,6 +9,10 @@ import { delay, newId } from "./store";
 import { suggestCategory } from "./categorySuggest";
 import { createTransaction } from "./transactionService";
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from "./categoryService";
+import { DATA_MODE } from "./api/config";
+import { api } from "./api";
+import type { ApiImportPreview, ApiJob } from "./api/dto";
+import { dateAtLocalTime } from "./transactionService";
 
 export const CSV_COLUMNS = "date, description, amount, type, category";
 export const CSV_EXAMPLE = "2026-09-21,Campus Cafe,2500,expense,Food";
@@ -42,11 +46,20 @@ function splitLine(line: string): string[] {
 }
 
 /** Field-level validation; run on parse and again after every preview edit. */
-export function validateImportRow(row: ImportRow): ImportRow {
+export function validateImportRow(
+  row: ImportRow,
+  knownCategories?: { income: string[]; expense: string[] },
+): ImportRow {
   const errors: Record<string, string> = {};
   const rawType = row.rawType ?? row.type;
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date) || Number.isNaN(Date.parse(row.date))) {
+  const dateParts = row.date.split("-").map(Number);
+  const parsedDate = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2]));
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(row.date)
+    && parsedDate.getUTCFullYear() === dateParts[0]
+    && parsedDate.getUTCMonth() + 1 === dateParts[1]
+    && parsedDate.getUTCDate() === dateParts[2];
+  if (!validDate) {
     errors.date = "Use the date format yyyy-mm-dd.";
   }
   if (!row.description.trim()) errors.description = "Add a description.";
@@ -60,7 +73,7 @@ export function validateImportRow(row: ImportRow): ImportRow {
   if (!row.category.trim()) {
     errors.category = "Choose a category.";
   } else {
-    const known = row.type === "income" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES;
+    const known = knownCategories?.[row.type] ?? (row.type === "income" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES);
     if (!known.includes(row.category)) errors.category = "Pick a category from your list.";
   }
 
@@ -131,7 +144,7 @@ export async function suggestImportCategories(rows: ImportRow[]): Promise<Import
       return { ...row, category: suggestion.category, suggested: true };
     }),
   );
-  return delay(filled.map(validateImportRow), 250);
+  return delay(filled.map((row) => validateImportRow(row)), 250);
 }
 
 export interface ImportOutcome {
@@ -139,12 +152,93 @@ export interface ImportOutcome {
   skipped: number;
 }
 
+export type ServerImportPreview = ApiImportPreview;
+
+function csvCell(value: string): string {
+  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+function rowsToApiCsv(rows: ImportRow[]): string {
+  const header = "date,amount,description,type,category";
+  const lines = rows.map((row) => [
+    dateAtLocalTime(row.date, 12),
+    String(Number(row.amount.replace(/,/g, ""))),
+    row.description.trim(),
+    row.type,
+    row.category.trim(),
+  ].map(csvCell).join(","));
+  return [header, ...lines].join("\n");
+}
+
+export async function previewImportRows(rows: ImportRow[], filename: string): Promise<ServerImportPreview> {
+  const response = await api.request<ApiImportPreview>("/transactions/imports/preview", {
+    method: "POST",
+    body: { filename, csv: rowsToApiCsv(rows) },
+  });
+  return response.data;
+}
+
+async function waitForImportJob(statusUrl: string): Promise<ImportOutcome> {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const job = (await api.request<ApiJob>(statusUrl)).data;
+    if (job.status === "succeeded") {
+      return {
+        imported: Number(job.result?.imported ?? 0),
+        skipped: Number(job.result?.skipped_duplicates ?? 0),
+      };
+    }
+    if (job.status === "failed" || job.status === "cancelled") {
+      throw new Error(job.error || "CSV import failed.");
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+  throw new Error("The import is still queued. Check that the CSV worker is running.");
+}
+
+export async function confirmServerImport(importId: string, includeDuplicates: boolean): Promise<ImportOutcome> {
+  const response = await api.request<{
+    imported?: number;
+    skipped_duplicates?: number;
+    status: string;
+    status_url?: string;
+  }>(`/transactions/imports/${importId}/confirm`, {
+    method: "POST",
+    body: { include_duplicates: includeDuplicates },
+  });
+  if (response.data.status === "pending" && response.data.status_url) {
+    return waitForImportJob(response.data.status_url);
+  }
+  return {
+    imported: response.data.imported ?? 0,
+    skipped: response.data.skipped_duplicates ?? 0,
+  };
+}
+
+export async function downloadImportErrors(errorsUrl: string): Promise<void> {
+  const result = await api.requestBinary<never>(errorsUrl);
+  if (result.kind !== "file") throw new Error("The error file is not ready.");
+  const url = URL.createObjectURL(result.blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = result.filename || "campuscoin-import-errors.csv";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /**
  * Confirmed import: creates every valid row, skips invalid ones.
  * Never inserts anything on its own — the preview must be confirmed first.
  */
 export async function importRows(rows: ImportRow[]): Promise<ServiceResult<ImportOutcome>> {
-  const validated = rows.map(validateImportRow);
+  if (DATA_MODE === "live") {
+    try {
+      const preview = await previewImportRows(rows, "campuscoin-import.csv");
+      return { ok: true, data: await confirmServerImport(preview.import_id, false) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "We couldn't import those rows." };
+    }
+  }
+  const validated = rows.map((row) => validateImportRow(row));
   const valid = validated.filter((row) => Object.keys(row.errors).length === 0);
   if (valid.length === 0) {
     return { ok: false, error: "There are no valid rows to import yet." };

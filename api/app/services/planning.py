@@ -248,7 +248,15 @@ class PlanningService:
         }
 
     def report(
-        self, user, period="monthly", year=None, month=None, start=None, end=None, category_id=None
+        self,
+        user,
+        period="monthly",
+        year=None,
+        month=None,
+        start=None,
+        end=None,
+        category_id=None,
+        transaction_type=None,
     ):
         RecurrenceService().materialize_due(user)
         now = datetime.now(ZoneInfo(user.timezone))
@@ -286,9 +294,13 @@ class PlanningService:
             category = self.repo.category(category_id)
             if category is None or category.owner_id not in (None, user.id):
                 raise LedgerError("not_found", "Category not found", 404)
+        if transaction_type not in (None, "income", "expense"):
+            raise LedgerError("invalid_filter", "Type must be income or expense")
         rows = self.repo.transactions(user.id, lower, upper)
         if category_id:
             rows = [row for row in rows if row.category_id == category_id]
+        if transaction_type:
+            rows = [row for row in rows if row.transaction_type == transaction_type]
         if period == "income_source":
             rows = [row for row in rows if row.transaction_type == "income"]
         income = sum(

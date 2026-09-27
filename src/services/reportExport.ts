@@ -6,6 +6,11 @@
 
 import type { Budget, MonthlyInsight, ReportSummary, CategorySpending } from "../types";
 import { formatNaira, formatPercent } from "../utils/format";
+import type { Category, ReportFilters } from "../types";
+import { DATA_MODE } from "./api/config";
+import { api } from "./api";
+import type { ApiJob } from "./api/dto";
+import { reportApiOptions } from "./reportService";
 
 export interface ExportPayload {
   summary: ReportSummary;
@@ -13,6 +18,59 @@ export interface ExportPayload {
   budgets: Budget[];
   insight: MonthlyInsight | null;
   generatedAt: string;
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function waitForJob(statusUrl: string): Promise<ApiJob> {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const job = (await api.request<ApiJob>(statusUrl)).data;
+    if (job.status === "succeeded") return job;
+    if (job.status === "failed" || job.status === "cancelled") {
+      throw new Error(job.error || "Report export failed.");
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+  throw new Error("The report is still being prepared. Please try again shortly.");
+}
+
+export async function exportServerReport(
+  format: "pdf" | "png",
+  filters: ReportFilters,
+  categories: Category[],
+): Promise<void> {
+  const result = await api.requestBinary<ApiJob>("/reports/exports", {
+    method: "POST",
+    body: { ...reportApiOptions(filters, categories), format },
+  });
+  if (result.kind === "file") {
+    downloadBlob(result.blob, result.filename || `campuscoin-report.${format}`);
+    return;
+  }
+  const job = await waitForJob(result.response.data.status_url);
+  const downloadUrl = job.result?.download_url;
+  if (!downloadUrl) throw new Error("The completed export has no download link.");
+  const download = await api.requestBinary<never>(downloadUrl);
+  if (download.kind !== "file") throw new Error("The export download is not ready.");
+  downloadBlob(download.blob, download.filename || `campuscoin-report.${format}`);
+}
+
+export async function exportReport(
+  format: "pdf" | "png",
+  filters: ReportFilters,
+  categories: Category[],
+  payload: ExportPayload,
+): Promise<void> {
+  if (DATA_MODE === "live") return exportServerReport(format, filters, categories);
+  if (format === "pdf") exportReportPdf(payload);
+  else exportReportImage(payload);
 }
 
 function budgetStatus(budget: Budget): { label: string; value: string } {

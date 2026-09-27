@@ -34,6 +34,7 @@ def _options(values):
             "start": date("start"),
             "end": date("end"),
             "category_id": uuid.UUID(values["category_id"]) if values.get("category_id") else None,
+            "transaction_type": values.get("type") or None,
         }
     except (ValueError, TypeError) as exc:
         raise LedgerError("invalid_filter", "Invalid report filter") from exc
