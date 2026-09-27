@@ -11,6 +11,7 @@ from app.extensions import db
 from app.models import Budget, Notification, RecurringRule, TipState
 from app.repositories.planning import PlanningRepository
 from app.services.recurrence import RecurrenceService
+from app.services.system_content import SystemContentService
 from app.services.transactions import LedgerError, serialize_transaction
 
 
@@ -131,6 +132,14 @@ class PlanningService:
     def tips(self, user, year, month):
         budgets = self.budget_list(user, year, month)
         tips = []
+        for template in SystemContentService().list("tip_template", active_only=True):
+            tips.append(
+                {
+                    "key": f"template:{template.id}",
+                    "message": f"{template.title}: {template.body}",
+                    "estimated_savings": "0.00",
+                }
+            )
         for budget in budgets:
             if budget["status"] == "within_limit":
                 continue
@@ -232,6 +241,7 @@ class PlanningService:
         }
 
     def dashboard(self, user):
+        SystemContentService().sync_announcements(user)
         now = datetime.now(ZoneInfo(user.timezone))
         report = self.report(user, "monthly", now.year, now.month)
         budgets = self.budget_list(user, now.year, now.month)

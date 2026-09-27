@@ -5,14 +5,16 @@ from sqlalchemy import func, select
 
 from app.api.responses import success
 from app.extensions import db
-from app.models import Budget, Job, Notification, Transaction, User
+from app.models import Budget, Category, Job, Notification, Transaction, User
 from app.repositories.auth import AuthRepository
 from app.repositories.users import UserRepository
 from app.schemas.auth import LoginSchema
 from app.schemas.categories import CategorySchema, CategoryUpdateSchema
+from app.schemas.system_content import SystemContentCreateSchema, SystemContentUpdateSchema
 from app.services.audit import record_audit
 from app.services.auth import AuthService
 from app.services.categories import CategoryService, serialize_category
+from app.services.system_content import SystemContentService, serialize_content
 from app.services.users import serialize_user
 from app.utils.security import auth_required
 from app.utils.time import utcnow
@@ -36,11 +38,64 @@ def usage_statistics():
                 select(func.count()).select_from(User).where(User.is_active.is_(True))
             ),
             "transactions": active_transactions,
+            "total_transactions_logged": count(Transaction),
             "budgets": count(Budget),
             "notifications": count(Notification),
             "jobs": count(Job),
+            "most_used_categories": [
+                {"id": str(category_id), "name": name, "type": category_type, "transactions": total}
+                for category_id, name, category_type, total in db.session.execute(
+                    select(
+                        Category.id,
+                        Category.name,
+                        Category.category_type,
+                        func.count(Transaction.id).label("total"),
+                    )
+                    .join(Transaction, Transaction.category_id == Category.id)
+                    .where(Transaction.deleted_at.is_(None))
+                    .group_by(Category.id, Category.name, Category.category_type)
+                    .order_by(func.count(Transaction.id).desc(), Category.name)
+                    .limit(5)
+                ).all()
+            ],
         }
     )
+
+
+@admin.get("/content")
+@auth_required(admin=True)
+def list_system_content():
+    kind = request.args.get("kind")
+    if kind not in (None, "announcement", "tip_template"):
+        from app.api.responses import failure
+
+        return failure("invalid_kind", "Unknown content kind", status=400)
+    return success([serialize_content(item) for item in SystemContentService().list(kind)])
+
+
+@admin.post("/content")
+@auth_required(admin=True)
+def create_system_content():
+    values = SystemContentCreateSchema().load(request.get_json(silent=True) or {})
+    return success(
+        serialize_content(SystemContentService().create(g.current_user, values)), status=201
+    )
+
+
+@admin.patch("/content/<uuid:item_id>")
+@auth_required(admin=True)
+def update_system_content(item_id: uuid.UUID):
+    values = SystemContentUpdateSchema().load(request.get_json(silent=True) or {})
+    return success(
+        serialize_content(SystemContentService().update(g.current_user, item_id, values))
+    )
+
+
+@admin.delete("/content/<uuid:item_id>")
+@auth_required(admin=True)
+def delete_system_content(item_id: uuid.UUID):
+    SystemContentService().delete(g.current_user, item_id)
+    return success({"deleted": True})
 
 
 @admin.post("/login")

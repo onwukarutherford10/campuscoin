@@ -201,6 +201,13 @@ PDF and PNG exports use the same ledger data and a shared Campus Coin design: a 
 header, income/expense/balance cards, category bars, recent activity, and readable
 footers. PDF category sections paginate; PNG height expands with the report content.
 `GET /api/v1/admin/usage` returns aggregate counts only.
+It also returns `most_used_categories` (top five by non-deleted transaction count). Administrators
+manage announcements and tip templates with `GET/POST /api/v1/admin/content` and
+`PATCH/DELETE /api/v1/admin/content/{id}`. Announcements appear as student notifications;
+active templates appear in saving tips and respect each student's pin/bookmark/dismiss state.
+Run `flask --app wsgi:app db upgrade` to create the `system_content` table before using them.
+See the [OpenAPI specification](openapi.yaml) and the root [README](../README.md) for
+installation and the AI-use acknowledgement.
 
 ## Category suggestions
 

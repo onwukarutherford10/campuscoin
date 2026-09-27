@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BarChart3, Eye, EyeOff, FolderOpen, LogOut, Search, ShieldCheck, Users } from "lucide-react";
+import { BarChart3, Eye, EyeOff, FolderOpen, LogOut, Megaphone, Search, ShieldCheck, Users } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
 import { Card, EmptyState, ErrorState } from "../../components/StateViews";
 import AuthShell from "../auth/AuthShell";
 import { adminLogin, logout, restoreSession } from "../../auth/liveAuth";
 import { useLiveAuth } from "../../auth/useLiveAuth";
-import { adminApi, type AdminUsage } from "../../services/adminApi";
+import { adminApi, type AdminContent, type AdminUsage } from "../../services/adminApi";
 import { toServiceError } from "../../services/api/errors";
 import type { ApiCategory, ApiUser } from "../../services/api/dto";
 import { toast } from "../../services/toast";
 
-type Tab = "overview" | "users" | "categories";
+type Tab = "overview" | "users" | "categories" | "content";
 const tabs: { id: Tab; label: string; icon: typeof BarChart3 }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "users", label: "Users", icon: Users },
   { id: "categories", label: "Categories", icon: FolderOpen },
+  { id: "content", label: "Announcements & tips", icon: Megaphone },
 ];
 const button = "rounded-xl border border-line px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50";
 
@@ -88,19 +89,23 @@ function AdminDashboard({ user }: { user: ApiUser }) {
   const [usage, setUsage] = useState<AdminUsage | null>(null);
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [content, setContent] = useState<AdminContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"income" | "expense">("expense");
+  const [contentKind, setContentKind] = useState<"announcement" | "tip_template">("announcement");
+  const [contentTitle, setContentTitle] = useState("");
+  const [contentBody, setContentBody] = useState("");
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const [nextUsage, nextUsers, nextCategories] = await Promise.all([adminApi.usage(), adminApi.users(), adminApi.categories()]);
-      setUsage(nextUsage); setUsers(nextUsers); setCategories(nextCategories);
+      const [nextUsage, nextUsers, nextCategories, nextContent] = await Promise.all([adminApi.usage(), adminApi.users(), adminApi.categories(), adminApi.content()]);
+      setUsage(nextUsage); setUsers(nextUsers); setCategories(nextCategories); setContent(nextContent);
     } catch (cause) { setError(toServiceError(cause).error); }
     finally { setLoading(false); }
   }
@@ -136,11 +141,11 @@ function AdminDashboard({ user }: { user: ApiUser }) {
           <div className="mt-7">
             {tab === "overview" && usage && <>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[["Active users", usage.active_users], ["Total users", usage.users], ["Transactions logged", usage.transactions], ["Budgets", usage.budgets], ["Notifications", usage.notifications], ["Jobs", usage.jobs]].map(([label, value]) =>
+                {[["Active users", usage.active_users], ["Total users", usage.users], ["Transactions logged", usage.total_transactions_logged], ["Budgets", usage.budgets], ["Notifications", usage.notifications], ["Jobs", usage.jobs]].map(([label, value]) =>
                   <Card key={label}><p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p><p className="mt-3 font-display text-3xl font-semibold text-gray-900">{Number(value).toLocaleString()}</p></Card>)}
               </div>
-              <Card title="System announcements & tip templates" className="mt-5"><p className="text-sm text-gray-500">This control is not available yet. The current API does not expose announcement or template management.</p></Card>
-              <Card title="Most-used categories" className="mt-5"><p className="text-sm text-gray-500">Category usage statistics are not exposed by the current API.</p></Card>
+              <Card title="Most-used categories" className="mt-5">{usage.most_used_categories.length ? <ol className="mt-2 space-y-3">{usage.most_used_categories.map((category, index) => <li key={category.id} className="flex items-center justify-between gap-3 text-sm"><span>{index + 1}. {category.name} <span className="text-gray-500">({category.type})</span></span><span className="font-semibold">{category.transactions.toLocaleString()}</span></li>)}</ol> : <p className="text-sm text-gray-500">No transactions logged yet.</p>}</Card>
+              <Card title="System announcements & tip templates" className="mt-5"><p className="text-sm text-gray-500">{content.filter((item) => item.is_active && item.kind === "announcement").length} active announcements · {content.filter((item) => item.is_active && item.kind === "tip_template").length} active tip templates</p><button type="button" className="mt-3 text-sm font-medium text-brand-dark underline" onClick={() => setTab("content")}>Manage content</button></Card>
             </>}
             {tab === "users" && <>
               <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">User accounts <span className="text-gray-400">({users.length})</span></h2>
@@ -163,6 +168,16 @@ function AdminDashboard({ user }: { user: ApiUser }) {
                   <button disabled={Boolean(busy)} className={button} onClick={() => { const next = window.prompt("Category name", item.name)?.trim(); if (next && next !== item.name) void act(item.id, () => adminApi.renameCategory(item.id, next), "Category updated"); }}>Rename</button>
                   <button disabled={Boolean(busy)} className={`${button} text-red-600`} onClick={() => { if (window.confirm(`Deactivate ${item.name}?`)) void act(item.id, () => adminApi.removeCategory(item.id), "Category deactivated"); }}>Remove</button>
                 </div></div></Card>)}</div>
+            </>}
+            {tab === "content" && <>
+              <h2 className="text-lg font-semibold">System messages</h2><p className="mt-1 text-sm text-gray-500">Announcements reach students through notifications. Active tip templates appear alongside personalized saving tips.</p>
+              <form className="mt-5 space-y-3 rounded-2xl border border-line bg-white p-5" onSubmit={(event) => { event.preventDefault(); if (!contentTitle.trim() || !contentBody.trim()) return; void act("content", () => adminApi.createContent({ kind: contentKind, title: contentTitle.trim(), body: contentBody.trim() }), "Message published").then((saved) => { if (saved) { setContentTitle(""); setContentBody(""); } }); }}>
+                <select aria-label="Message type" value={contentKind} onChange={(event) => setContentKind(event.target.value as typeof contentKind)} className="rounded-xl border border-line bg-white px-3 py-2 text-sm"><option value="announcement">Announcement</option><option value="tip_template">Tip template</option></select>
+                <input aria-label="Message title" value={contentTitle} onChange={(event) => setContentTitle(event.target.value)} maxLength={100} required placeholder="Title" className="block w-full rounded-xl border border-line px-3 py-2 text-sm" />
+                <textarea aria-label="Message body" value={contentBody} onChange={(event) => setContentBody(event.target.value)} maxLength={2000} required rows={3} placeholder="Message for students" className="block w-full rounded-xl border border-line px-3 py-2 text-sm" />
+                <button disabled={Boolean(busy)} className="rounded-xl bg-brand px-5 py-2 text-sm font-medium text-white disabled:opacity-50">Publish</button>
+              </form>
+              <div className="mt-5 space-y-3">{content.map((item) => <Card key={item.id}><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 flex-1"><p className="text-xs font-semibold uppercase tracking-wider text-brand-dark">{item.kind === "announcement" ? "Announcement" : "Tip template"} · {item.is_active ? "Active" : "Inactive"}</p><h3 className="mt-1 font-semibold">{item.title}</h3><p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{item.body}</p></div><div className="flex gap-2"><button className={button} disabled={Boolean(busy)} onClick={() => { const title = window.prompt("Title", item.title); if (title === null) return; const body = window.prompt("Message", item.body); if (body !== null) void act(item.id, () => adminApi.updateContent(item.id, { title, body }), "Message updated"); }}>Edit</button><button className={button} disabled={Boolean(busy)} onClick={() => void act(item.id, () => adminApi.updateContent(item.id, { is_active: !item.is_active }), item.is_active ? "Message paused" : "Message activated")}>{item.is_active ? "Pause" : "Activate"}</button><button className={`${button} text-red-600`} disabled={Boolean(busy) || !item.is_active} onClick={() => { if (window.confirm(`Deactivate ${item.title}?`)) void act(item.id, () => adminApi.removeContent(item.id), "Message deactivated"); }}>Remove</button></div></div></Card>)}{content.length === 0 && <EmptyState title="No messages yet" description="Publish an announcement or tip template above." />}</div>
             </>}
           </div>
         )}
