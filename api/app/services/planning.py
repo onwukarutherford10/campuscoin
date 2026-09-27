@@ -244,7 +244,9 @@ class PlanningService:
             "budgets": budgets,
             "tips": self.tips(user, now.year, now.month),
             "alerts": [self.serialize_notification(n) for n in self.repo.notifications(user.id)],
-            "recent_activity": report["recent_activity"],
+            "recent_activity": [
+                serialize_transaction(row) for row in self.repo.recent_transactions(user.id)
+            ],
         }
 
     def report(

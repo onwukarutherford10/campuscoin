@@ -19,17 +19,11 @@ export function ThemeSettings({ darkMode, onToggle }: ThemeSettingsProps) {
             <p className="mt-1 text-[13px] text-gray-500">Use a black-and-charcoal theme across your dashboard.</p>
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700" htmlFor="dashboard-dark-mode">
-          <input
-            id="dashboard-dark-mode"
-            type="checkbox"
-            role="switch"
-            checked={darkMode}
-            onChange={onToggle}
-            className="h-5 w-5 accent-brand"
-          />
-          {darkMode ? "On" : "Off"}
-        </label>
+        <button type="button" role="switch" aria-checked={darkMode} aria-label="Dark mode"
+          onClick={onToggle}
+          className={`relative h-8 w-14 rounded-full border transition-colors focus-visible:outline-offset-4 ${darkMode ? "border-brand bg-brand" : "border-line bg-gray-200"}`}>
+          <span className={`absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${darkMode ? "translate-x-6" : "translate-x-0"}`} />
+        </button>
       </div>
     </Card>
   );

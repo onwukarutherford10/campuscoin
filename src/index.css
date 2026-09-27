@@ -61,10 +61,18 @@ body {
 }
 
 .dashboard-dark .bg-white,
+.dashboard-dark [class*="sm:bg-white"],
+.dashboard-dark [class*="lg:bg-white"],
 .dashboard-dark [class*="bg-white/"] { background-color: #1b1c1f; }
 .dashboard-dark .bg-gray-50 { background-color: #17181a; }
+.dashboard-dark [class*="bg-gray-50/"] { background-color: #252629; }
+.dashboard-dark [class*="bg-brand-soft/"] { background-color: #202823; }
 .dashboard-dark .bg-gray-100 { background-color: #27282b; }
 .dashboard-dark .bg-gray-200 { background-color: #35373a; }
+.dashboard-dark .bg-ink { background-color: #1b1c1f; }
+.dashboard-dark .financial-summary { background-color: #1b1c1f; border: 1px solid #34363a; }
+.dashboard-dark [class*="hover:bg-white"]:hover { background-color: #303236; }
+.dashboard-dark [role="switch"] > span { background-color: #ffffff; }
 .dashboard-dark .text-gray-900,
 .dashboard-dark .text-gray-800 { color: #f4f4f5; }
 .dashboard-dark .text-gray-700 { color: #dedee0; }
@@ -88,6 +96,11 @@ body {
 }
 .dashboard-dark svg text { fill: #dedee0; }
 .dashboard-dark svg rect[fill="#1f2937"] { fill: #9ca3af; }
+.dashboard-dark .sidebar-link:not(.sidebar-active):hover,
+.dashboard-dark .sidebar-link:not(.sidebar-active):focus-visible {
+  background-color: #292b2e;
+  color: #f4f4f5;
+}
 
 :focus-visible {
   outline: 2px solid var(--color-brand);

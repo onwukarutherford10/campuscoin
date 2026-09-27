@@ -66,7 +66,7 @@ export function CurrentMonthCard({ report, monthLabel }: CurrentMonthCardProps) 
             <span className="w-16 shrink-0 text-gray-500">{week.label}</span>
             <span className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
               <span
-                className="block h-full rounded-full bg-ink"
+                className="block h-full rounded-full bg-brand"
                 style={{ width: `${Math.max((week.amount / maxWeek) * 100, 3)}%` }}
               />
             </span>

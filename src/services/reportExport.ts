@@ -118,25 +118,32 @@ export function buildReportHtml(payload: ExportPayload): string {
 <meta charset="utf-8" />
 <title>Campus Coin report: ${escapeHtml(summary.periodLabel)}</title>
 <style>
-  body { font-family: Georgia, "Times New Roman", serif; color: #16181d; margin: 40px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .meta { color: #6b7280; font-size: 12px; margin-bottom: 24px; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #151816; margin: 0; }
+  .banner { background: #151816; color: #fff; padding: 38px 42px; }
+  .brand { color: #a8edbe; font-size: 12px; font-weight: 800; letter-spacing: .09em; margin-bottom: 25px; }
+  .content { padding: 30px 42px 45px; }
+  h1 { font-size: 28px; margin: 0 0 9px; }
+  .meta { color: #d4ded7; font-size: 12px; margin: 0; }
   .stats { display: flex; gap: 24px; margin-bottom: 24px; }
-  .stat { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 16px; min-width: 130px; }
-  .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; }
-  .stat .value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+  .stat { background: #f5f7f5; border-radius: 12px; padding: 16px; min-width: 130px; flex: 1; }
+  .stat:last-child { background: #eaf7ef; }
+  .stat .label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #637168; }
+  .stat .value { font-size: 17px; font-weight: 700; margin-top: 7px; }
   h2 { font-size: 15px; margin: 24px 0 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #eceef1; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #e3e9e5; }
   th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
   td.num, th.num { text-align: right; }
-  .insight { background: #f2fbf5; border: 1px solid #d3efe0; border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
+  .insight { background: #eaf7ef; border-radius: 12px; padding: 14px 16px; font-size: 13px; line-height: 1.6; }
   .foot { margin-top: 28px; font-size: 11px; color: #9ca3af; }
+  @media print { .banner { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .stat, .insight { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
 <body>
-  <h1>Campus Coin: ${escapeHtml(summary.periodLabel)}</h1>
-  <p class="meta">Generated ${escapeHtml(payload.generatedAt)}</p>
+  <div class="banner"><div class="brand">CAMPUS COIN</div><h1>Your money, clearly.</h1>
+  <p class="meta">${escapeHtml(summary.periodLabel)} · Generated ${escapeHtml(payload.generatedAt)}</p></div>
+  <div class="content">
 
   <div class="stats">
     <div class="stat"><div class="label">Income</div><div class="value">${formatNaira(summary.income)}</div></div>
@@ -169,6 +176,7 @@ export function buildReportHtml(payload: ExportPayload): string {
   }
 
   <p class="foot">Campus Coin: student finance, explained simply. Insights are guidance, not financial advice.</p>
+</div>
 </body>
 </html>`;
 }
@@ -242,20 +250,27 @@ export function exportReportImage(payload: ExportPayload): void {
   const canvas = document.createElement("canvas");
   const scale = 2;
   canvas.width = CANVAS_W * scale;
-  canvas.height = (insight ? 1180 : 1040) * scale;
+  canvas.height = Math.max(1100,
+    700 + Math.max(1, Math.min(categories.length, 8)) * 36
+      + Math.max(1, Math.min(budgets.length, 5)) * 36 + (insight ? 320 : 0)) * scale;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.scale(scale, scale);
 
-  // Background + header.
+  // Brand header and quiet white report canvas.
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, CANVAS_W, canvas.height / scale);
-  ctx.fillStyle = "#16181d";
+  ctx.fillStyle = "#151816";
+  ctx.fillRect(0, 0, CANVAS_W, 280);
+  ctx.fillStyle = "#a8edbe";
+  ctx.font = "bold 19px sans-serif";
+  ctx.fillText("CAMPUS COIN", 60, 60);
+  ctx.fillStyle = "#ffffff";
   ctx.font = "bold 34px sans-serif";
-  ctx.fillText(`Campus Coin: ${summary.periodLabel}`, 60, 80);
-  ctx.fillStyle = "#6b7280";
+  ctx.fillText("Your money, clearly.", 60, 120);
+  ctx.fillStyle = "#d4ded7";
   ctx.font = "18px sans-serif";
-  ctx.fillText(`Generated ${payload.generatedAt}`, 60, 116);
+  ctx.fillText(`${summary.periodLabel} · Generated ${payload.generatedAt}`, 60, 160);
 
   // Stat blocks.
   const stats: [string, string][] = [
@@ -266,20 +281,20 @@ export function exportReportImage(payload: ExportPayload): void {
   ];
   stats.forEach(([label, value], index) => {
     const x = 60 + index * 230;
-    ctx.fillStyle = "#f6f7f9";
+    ctx.fillStyle = index === 3 ? "#eaf7ef" : "#f5f7f5";
     ctx.beginPath();
-    ctx.roundRect(x, 150, 210, 96, 12);
+    ctx.roundRect(x, 300, 210, 96, 12);
     ctx.fill();
     ctx.fillStyle = "#6b7280";
     ctx.font = "15px sans-serif";
-    ctx.fillText(label, x + 18, 184);
+    ctx.fillText(label, x + 18, 334);
     ctx.fillStyle = "#16181d";
     ctx.font = "bold 24px sans-serif";
-    ctx.fillText(value, x + 18, 220);
+    ctx.fillText(value, x + 18, 370);
   });
 
   // Category breakdown.
-  let y = 310;
+  let y = 450;
   ctx.fillStyle = "#16181d";
   ctx.font = "bold 22px sans-serif";
   ctx.fillText("Spending by category", 60, y);

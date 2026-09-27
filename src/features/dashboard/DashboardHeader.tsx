@@ -5,14 +5,19 @@ import { loadOnboardingData } from "../../utils/storage";
 import { currentPeriodLabel, firstNameOf, timeBasedGreeting } from "../../utils/format";
 import { DATA_MODE } from "../../services/api/config";
 import { useLiveAuth } from "../../auth/useLiveAuth";
+import type { DashboardAlert } from "../../types";
+import NotificationsPanel from "./NotificationsPanel";
 
 interface DashboardHeaderProps {
   onOpenMenu: () => void;
-  unreadCount?: number;
+  alerts?: DashboardAlert[];
+  onRead: (id: string) => Promise<void>;
+  onDismiss: (id: string) => Promise<void>;
 }
 
 /** Greeting, current period and profile access. Mobile keeps a compact top bar. */
-export function DashboardHeader({ onOpenMenu, unreadCount = 0 }: DashboardHeaderProps) {
+export function DashboardHeader({ onOpenMenu, alerts = [], onRead, onDismiss }: DashboardHeaderProps) {
+  const unreadCount = alerts.filter((alert) => !alert.readAt).length;
   const auth = useLiveAuth();
   const profile = DATA_MODE === "mock" ? loadOnboardingData() : null;
   const session = getSession();
@@ -62,19 +67,16 @@ export function DashboardHeader({ onOpenMenu, unreadCount = 0 }: DashboardHeader
           <span className="hidden rounded-xl border border-line bg-white px-4 py-2 text-[13px] text-gray-600 sm:inline-block">
             {currentPeriodLabel()}
           </span>
-          <button
-            type="button"
-            aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
-            onClick={() => document.getElementById("dashboard-alerts")?.scrollIntoView({ behavior: "smooth" })}
-            className="relative hidden h-10 w-10 items-center justify-center rounded-xl border border-line bg-white text-gray-600 transition hover:bg-gray-50 lg:flex"
-          >
-            <Bell size={17} />
-            {unreadCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </button>
+          <details className="relative z-30">
+            <summary aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+              className="relative flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-line bg-white text-gray-600 transition hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+              <Bell size={17} />
+              {unreadCount > 0 && <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+            </summary>
+            <div className="absolute right-0 top-12 max-h-[70vh] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-line bg-white p-4 shadow-xl">
+              <NotificationsPanel alerts={alerts} onRead={onRead} onDismiss={onDismiss} />
+            </div>
+          </details>
           <span className="hidden h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-soft text-[13px] font-semibold text-brand-dark lg:flex">
             {monogram}
           </span>
