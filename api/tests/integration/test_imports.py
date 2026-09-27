@@ -1,8 +1,8 @@
-from tests.integration.test_auth import post, register
-from tests.integration.test_transactions import make_category
 from app.extensions import db
 from app.models import Job, JobStatus
 from app.services.imports import ImportService
+from tests.integration.test_auth import post, register
+from tests.integration.test_transactions import make_category
 
 CSV = """date,amount,description,type,category,merchant
 2026-09-20T12:00:00+01:00,12.50,Lunch,expense,Food,Cafe

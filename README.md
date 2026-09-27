@@ -6,7 +6,7 @@ Install Node dependencies with `npm ci`, then start the API using the instructio
 
 The frontend defaults to `VITE_DATA_MODE=live`. Identity screens use the API; financial and onboarding screens show a protected availability page until their rollout phases are complete. Set `VITE_DATA_MODE=mock` only when intentionally viewing the local demo. Set `VITE_API_BASE_URL` to the versioned API root if it differs from `/api/v1`.
 
-Signup sends a six-digit verification code through Gmail SMTP. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in `api/.env`. The Gmail account needs 2-Step Verification and an app password. Do not use the regular Gmail password. The API seeds categories, not student accounts.
+Signup verification and password recovery send six-digit codes through Gmail SMTP. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in `api/.env`. The Gmail account needs 2-Step Verification and an app password. Do not use the regular Gmail password. The API seeds categories, not student accounts. Signed-in screens provide breadcrumbs and a persistent dark-mode toggle in Settings.
 
 ## Deployment
 

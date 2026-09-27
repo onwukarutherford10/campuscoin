@@ -30,6 +30,13 @@ export interface ApiCategory {
   is_active: boolean;
 }
 
+export interface ApiCategorySuggestion {
+  category_id: string | null;
+  confidence: "high" | "medium" | "low" | "none";
+  source: "memory" | "rule" | "luna" | "cache" | "manual";
+  rationale: string;
+}
+
 export interface ApiTransaction {
   id: string;
   category_id: string;

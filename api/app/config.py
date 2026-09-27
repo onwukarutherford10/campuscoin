@@ -40,6 +40,11 @@ class BaseConfig:
     ACCESS_TOKEN_TTL = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MINUTES", "15")))
     REFRESH_TOKEN_TTL = timedelta(days=int(os.getenv("REFRESH_TOKEN_DAYS", "30")))
     PASSWORD_RESET_TTL = timedelta(minutes=int(os.getenv("PASSWORD_RESET_MINUTES", "30")))
+    PASSWORD_RESET_CODE_TTL = timedelta(minutes=int(os.getenv("PASSWORD_RESET_CODE_MINUTES", "10")))
+    PASSWORD_RESET_CODE_MAX_ATTEMPTS = int(os.getenv("PASSWORD_RESET_CODE_MAX_ATTEMPTS", "5"))
+    PASSWORD_RESET_RESEND_COOLDOWN = timedelta(
+        seconds=int(os.getenv("PASSWORD_RESET_RESEND_SECONDS", "30"))
+    )
     EMAIL_VERIFICATION_REQUIRED = True
     EMAIL_CODE_TTL = timedelta(minutes=int(os.getenv("EMAIL_CODE_MINUTES", "10")))
     EMAIL_RESEND_COOLDOWN = timedelta(seconds=int(os.getenv("EMAIL_RESEND_SECONDS", "30")))
@@ -62,6 +67,13 @@ class BaseConfig:
     CSV_PREVIEW_TTL_HOURS = int(os.getenv("CSV_PREVIEW_TTL_HOURS", "24"))
     DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", "25"))
     MAX_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", "100"))
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    AI_CATEGORIZATION_MODEL = os.getenv("AI_CATEGORIZATION_MODEL", "gpt-6-luna")
+    AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "8"))
+    AI_DAILY_QUOTA = int(os.getenv("AI_DAILY_QUOTA", "10"))
+    AI_MONTHLY_QUOTA = int(os.getenv("AI_MONTHLY_QUOTA", "100"))
+    AI_MONTHLY_SPEND_CEILING_USD = os.getenv("AI_MONTHLY_SPEND_CEILING_USD", "1.00")
+    AI_RESERVED_COST_USD = os.getenv("AI_RESERVED_COST_USD", "0.001")
 
     @classmethod
     def validate(cls, config: dict[str, Any]) -> None:

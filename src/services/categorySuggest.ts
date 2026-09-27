@@ -1,9 +1,5 @@
-// AI category suggestion integration point (Phase 2, section 6).
-//
-// The form calls suggestCategory(description, type) while the student types.
-// Rules below are the offline fallback so the feature works today; when the
-// AI endpoint ships, replace the body with a fetch() call — the signature and
-// the UI contract (auto-select when confident, suggestion otherwise) stay.
+// Mock-mode, on-device category suggestions. Live mode calls the Flask
+// suggestion endpoint only when the student requests a suggestion.
 //
 // Section 7 (learning from corrections): when a student picks a different
 // category than the one suggested, the choice is remembered and wins over

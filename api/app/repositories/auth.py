@@ -30,3 +30,19 @@ class AuthRepository:
         return db.session.scalar(
             select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
         )
+
+    def latest_reset_for_user(self, user_id: uuid.UUID) -> PasswordResetToken | None:
+        return db.session.scalar(
+            select(PasswordResetToken)
+            .where(PasswordResetToken.user_id == user_id, PasswordResetToken.used_at.is_(None))
+            .order_by(PasswordResetToken.created_at.desc(), PasswordResetToken.id.desc())
+            .limit(1)
+            .with_for_update()
+        )
+
+    def use_user_resets(self, user_id: uuid.UUID) -> None:
+        db.session.execute(
+            update(PasswordResetToken)
+            .where(PasswordResetToken.user_id == user_id, PasswordResetToken.used_at.is_(None))
+            .values(used_at=utcnow())
+        )

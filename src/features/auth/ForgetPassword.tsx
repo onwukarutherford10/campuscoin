@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import AuthShell from "./AuthShell";
 import { requestPasswordReset } from "../../auth/liveAuth.ts";
 import { toServiceError } from "../../services/api/errors.ts";
+import { DATA_MODE } from "../../services/api/config.ts";
 
 const forgetPasswordSchema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email"),
@@ -14,11 +15,11 @@ export type ForgetPasswordValues = z.infer<typeof forgetPasswordSchema>;
 
 /** Step one of recovery: confirm the email, then set a new password. */
 function ForgetPassword() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const [accepted, setAccepted] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -30,8 +31,14 @@ function ForgetPassword() {
     setError("");
     setSubmitting(true);
     try {
-      await requestPasswordReset(result.data.email);
-      setAccepted(true);
+      if (DATA_MODE === "live") {
+        await requestPasswordReset(result.data.email);
+        navigate(`/resetpassword?email=${encodeURIComponent(result.data.email)}`);
+      } else {
+        const demoCode = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+        sessionStorage.setItem("cc.demoResetCode", JSON.stringify({ email: result.data.email, code: demoCode }));
+        navigate(`/resetpassword?email=${encodeURIComponent(result.data.email)}`, { state: { demoCode } });
+      }
     } catch (requestError) {
       setError(toServiceError(requestError).error);
     } finally {
@@ -42,7 +49,7 @@ function ForgetPassword() {
   return (
     <AuthShell
       title="Reset your password"
-      subtitle="Enter the email you signed up with. If an account exists, we'll send a secure reset link."
+      subtitle="Enter the email you signed up with. If an account exists, we'll send a six-digit reset code."
       backTo="/login"
       backLabel="Back to login"
       art={{ src: "/art/auth-art.jpg", alt: "Student using a smartphone on campus" }}
@@ -55,11 +62,7 @@ function ForgetPassword() {
         </p>
       }
     >
-      {accepted ? (
-        <div className="mt-7 rounded-xl bg-brand-soft/50 p-5 text-sm text-gray-700">
-          If an account exists for that address, reset instructions have been issued. Check your inbox and spam folder.
-        </div>
-      ) : <form onSubmit={handleSubmit} className="mt-7">
+      <form onSubmit={handleSubmit} className="mt-7">
         <label htmlFor="email" className="block text-[13px] font-medium text-gray-700">
           Email address
         </label>
@@ -80,9 +83,9 @@ function ForgetPassword() {
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-70"
         >
           {submitting && <Loader2 size={16} className="animate-spin" />}
-          {submitting ? "Sending…" : "Send reset link"}
+          {submitting ? "Sending…" : "Send reset code"}
         </button>
-      </form>}
+      </form>
     </AuthShell>
   );
 }

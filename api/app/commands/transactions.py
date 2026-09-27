@@ -5,8 +5,8 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import User
-from app.services.recurrence import RecurrenceService
 from app.services.imports import ImportService
+from app.services.recurrence import RecurrenceService
 
 
 @click.command("materialize-recurring")
