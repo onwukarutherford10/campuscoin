@@ -171,7 +171,7 @@ class AuthService:
         db.session.commit()
         return code
 
-    def reset_password_with_code(self, email: str, code: str, password: str) -> User:
+    def verify_password_reset_code(self, email: str, code: str) -> User:
         user = self.users.by_email(email.strip().lower())
         if user is None or not user.is_active:
             raise AuthError("invalid_reset_code", "Code is invalid or expired", 400)
@@ -185,6 +185,10 @@ class AuthService:
             reset.attempts += 1
             db.session.commit()
             raise AuthError("invalid_reset_code", "Code is invalid or expired", 400)
+        return user
+
+    def reset_password_with_code(self, email: str, code: str, password: str) -> User:
+        user = self.verify_password_reset_code(email, code)
         user.password_hash = generate_password_hash(password)
         self.auth.use_user_resets(user.id)
         self.auth.revoke_user_sessions(user.id)

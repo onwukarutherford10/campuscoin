@@ -5,6 +5,7 @@ from app.models.job import Job, JobStatus, JobType
 from app.models.planning import Budget, Notification, ReportExport, TipState
 from app.models.recurrence import RecurrenceFrequency, RecurringRule
 from app.models.security import AuditLog, RateLimitRecord
+from app.models.system_content import SystemContent
 from app.models.transaction import (
     CSVImport,
     RevisionAction,
@@ -31,6 +32,7 @@ __all__ = [
     "Notification",
     "ReportExport",
     "TipState",
+    "SystemContent",
     "PasswordResetToken",
     "RateLimitRecord",
     "RecurrenceFrequency",

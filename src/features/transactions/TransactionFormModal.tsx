@@ -12,8 +12,6 @@ import { CategoryInput } from "../../components/CategoryInput";
 import { recordCorrection, suggestCategory } from "../../services/categorySuggest";
 import { todayISO } from "../../services/store";
 import { DATA_MODE } from "../../services/api/config";
-import { api } from "../../services/api";
-import type { ApiCategorySuggestion } from "../../services/api/dto";
 
 interface TransactionFormModalProps {
   mode: "add" | "edit";
@@ -74,10 +72,6 @@ export function TransactionFormModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [suggestionId, setSuggestionId] = useState<string | null>(null);
-  const [suggestionSource, setSuggestionSource] = useState("");
-  const [suggestionBusy, setSuggestionBusy] = useState(false);
-  const [suggestionMessage, setSuggestionMessage] = useState("");
   /** Once the student picks a category by hand, typing never overrides it. */
   const [categoryTouched, setCategoryTouched] = useState(initial != null);
   const [autoFilled, setAutoFilled] = useState(false);
@@ -118,25 +112,18 @@ export function TransactionFormModal({
     setCategory("");
     setCategoryId("");
     setSuggestion(null);
-    setSuggestionId(null);
-    setSuggestionMessage("");
-    setSuggestionBusy(false);
     setCategoryTouched(false);
     setAutoFilled(false);
     setErrors({});
   }
 
-  /** Mock suggestions run while typing; live suggestions require a deliberate click. */
+  /** Local word matching runs in both modes; no description is sent externally. */
   function handleDescriptionChange(value: string) {
     setDescription(value);
     setSuggestion(null);
-    setSuggestionId(null);
-    setSuggestionMessage("");
-    setSuggestionBusy(false);
     setAutoFilled(false);
     const token = ++suggestionToken.current;
-    if (DATA_MODE === "live") return;
-    suggestCategory(value, type).then((result) => {
+    suggestCategory(value, type, categoriesRef.current).then((result) => {
       if (token !== suggestionToken.current) return;
       if (!result) return;
       const wanted = CATEGORY_ALIASES[normalizedLabel(result.category)] ?? normalizedLabel(result.category);
@@ -153,31 +140,6 @@ export function TransactionFormModal({
       }
       if (suggestedName !== selectedRef.current) setSuggestion(suggestedName);
     });
-  }
-
-  async function requestLiveSuggestion() {
-    if (!description.trim() || suggestionBusy) return;
-    const token = ++suggestionToken.current;
-    setSuggestionBusy(true);
-    setSuggestionMessage("");
-    try {
-      const response = await api.request<ApiCategorySuggestion>("/categories/suggest", {
-        method: "POST", body: { transaction_type: type, description },
-      });
-      if (token !== suggestionToken.current) return;
-      const match = categoriesRef.current.find((entry) => entry.id === response.data.category_id && entry.type === type);
-      if (match) {
-        setSuggestion(match.name);
-        setSuggestionId(match.id);
-        setSuggestionSource(response.data.source);
-      } else {
-        setSuggestionMessage(response.data.rationale || "Choose a category manually.");
-      }
-    } catch {
-      if (token === suggestionToken.current) setSuggestionMessage("Suggestions are unavailable. Choose a category manually.");
-    } finally {
-      if (token === suggestionToken.current) setSuggestionBusy(false);
-    }
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -209,14 +171,7 @@ export function TransactionFormModal({
       return;
     }
     // The saved choice is ground truth; remember it for future suggestions.
-    if (DATA_MODE === "live") {
-      void api.request("/categories/suggest/feedback", {
-        method: "POST",
-        body: { transaction_type: type, description, category_id: categoryId, suggested_category_id: suggestionId },
-      }).catch(() => {});
-    } else {
-      recordCorrection(description, type, selected);
-    }
+    recordCorrection(description, type, selected);
     onClose();
   }
 
@@ -284,18 +239,12 @@ export function TransactionFormModal({
           />
           <FieldError message={errors.description} />
 
-          {DATA_MODE === "live" && (
-            <button type="button" disabled={!description.trim() || suggestionBusy} onClick={() => void requestLiveSuggestion()} className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-brand-dark disabled:opacity-50">
-              <Sparkles size={14} /> {suggestionBusy ? "Checking…" : "Suggest a category"}
-            </button>
-          )}
-          {suggestionMessage && <p className="mt-1 text-xs text-gray-500">{suggestionMessage}</p>}
 
           {suggestion && suggestion !== selected && (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-brand-soft/60 px-3 py-2">
               <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-brand-dark">
                 <Sparkles size={13} className="shrink-0" />
-                <span className="truncate">{DATA_MODE === "live" ? `${suggestionSource === "luna" ? "AI" : "Local"} suggestion` : "On-device suggestion"}: {suggestion}</span>
+                <span className="truncate">Suggested from description: {suggestion}</span>
               </span>
               <span className="flex shrink-0 items-center gap-1">
                 <button

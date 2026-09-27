@@ -1,0 +1,492 @@
+openapi: 3.0.3
+info:
+  title: CampusCoin API
+  version: 1.0.0
+  description: Cookie-authenticated CampusCoin student and administrator API. Mutations require X-CSRF-Token from GET /auth/csrf.
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: campuscoin_access
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    csrf:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fields: { type: object, additionalProperties: true }
+    Content:
+      type: object
+      required: [id, kind, title, body, is_active, version, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [announcement, tip_template] }
+        title: { type: string, maxLength: 100 }
+        body: { type: string, maxLength: 2000 }
+        is_active: { type: boolean }
+        version: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ContentInput:
+      type: object
+      required: [kind, title, body]
+      properties:
+        kind: { type: string, enum: [announcement, tip_template] }
+        title: { type: string, minLength: 1, maxLength: 100 }
+        body: { type: string, minLength: 1, maxLength: 2000 }
+        is_active: { type: boolean, default: true }
+    ContentResponse:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/Content' }
+        meta: { type: object, nullable: true }
+    Usage:
+      type: object
+      properties:
+        users: { type: integer }
+        active_users: { type: integer }
+        transactions: { type: integer, description: Non-deleted transactions }
+        total_transactions_logged: { type: integer, description: All transactions, including soft-deleted records }
+        budgets: { type: integer }
+        notifications: { type: integer }
+        jobs: { type: integer }
+        most_used_categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              type: { type: string, enum: [income, expense] }
+              transactions: { type: integer }
+paths:
+  /auth/csrf:
+    get:
+      tags: [Authentication]
+      summary: Obtain a CSRF token and cookie
+      responses: { '200': { description: CSRF token } }
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a student
+      responses: { '201': { description: Account created } }
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Student sign-in and cookie issuance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses: { '200': { description: Signed in } }
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Rotate refresh credential
+      responses: { '200': { description: Credentials rotated } }
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Revoke current session
+      responses: { '200': { description: Signed out } }
+  /auth/password/forgot:
+    post:
+      tags: [Authentication]
+      summary: Email a six-digit reset code
+      responses: { '200': { description: Generic response for known and unknown accounts } }
+  /auth/password/verify-code:
+    post:
+      tags: [Authentication]
+      summary: Verify the emailed reset code
+      responses: { '200': { description: Code verified } }
+  /auth/password/reset:
+    post:
+      tags: [Authentication]
+      summary: Reset password with code
+      responses: { '200': { description: Password changed and sessions revoked } }
+  /auth/email/resend:
+    post:
+      tags: [Authentication]
+      summary: Resend verification code
+      responses: { '200': { description: Code sent } }
+  /auth/email/verify:
+    post:
+      tags: [Authentication]
+      summary: Verify student email
+      responses: { '200': { description: Email verified } }
+  /users/me:
+    get:
+      tags: [Student]
+      summary: Get current profile
+      responses: { '200': { description: Profile } }
+    patch:
+      tags: [Student]
+      summary: Update current profile
+      responses: { '200': { description: Updated profile } }
+  /categories:
+    get:
+      tags: [Student]
+      summary: List available categories
+      responses: { '200': { description: Categories } }
+    post:
+      tags: [Student]
+      summary: Create owned category
+      responses: { '201': { description: Category created } }
+  /categories/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      tags: [Student]
+      summary: Edit owned category
+      responses: { '200': { description: Category updated } }
+    delete:
+      tags: [Student]
+      summary: Deactivate owned category
+      responses: { '200': { description: Category deactivated } }
+  /categories/suggest:
+    post:
+      tags: [Student]
+      summary: Deterministic category suggestion
+      responses: { '200': { description: Suggested existing category or manual fallback } }
+  /categories/suggest/batch:
+    post:
+      tags: [Student]
+      summary: Batch deterministic category suggestions
+      responses: { '200': { description: Suggestions } }
+  /categories/suggest/feedback:
+    post:
+      tags: [Student]
+      summary: Remember a student category correction
+      responses: { '200': { description: Feedback recorded } }
+  /transactions:
+    get:
+      tags: [Student]
+      summary: Paginated ledger with filters
+      responses: { '200': { description: Owned transactions } }
+    post:
+      tags: [Student]
+      summary: Create a transaction
+      responses: { '201': { description: Transaction created } }
+  /transactions/recent:
+    get:
+      tags: [Student]
+      summary: Recently viewed or edited transactions
+      responses: { '200': { description: Recent activity } }
+  /transactions/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Student]
+      summary: Get owned transaction
+      responses: { '200': { description: Transaction } }
+    patch:
+      tags: [Student]
+      summary: Edit transaction with revision history
+      responses: { '200': { description: Updated transaction } }
+    delete:
+      tags: [Student]
+      summary: Soft-delete transaction
+      responses: { '200': { description: Deleted } }
+  /transactions/{id}/restore:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Student]
+      summary: Restore a soft-deleted transaction
+      responses: { '200': { description: Restored } }
+  /transactions/{id}/revisions:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Student]
+      summary: Immutable transaction revisions
+      responses: { '200': { description: Revision snapshots } }
+  /transactions/imports/preview:
+    post:
+      tags: [Student]
+      summary: Preview and validate CSV import
+      responses: { '200': { description: Preview and row errors } }
+  /transactions/imports/{id}/confirm:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Student]
+      summary: Idempotently confirm CSV import
+      responses: { '200': { description: Imported }, '202': { description: Job queued } }
+  /transactions/imports/{id}/errors:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Student]
+      summary: Download CSV row errors
+      responses: { '200': { description: Error file } }
+  /recurring-transactions:
+    get:
+      tags: [Student]
+      summary: List recurring rules
+      responses: { '200': { description: Rules } }
+    post:
+      tags: [Student]
+      summary: Create recurring rule
+      responses: { '201': { description: Rule created } }
+  /recurring-transactions/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      tags: [Student]
+      summary: Update recurring rule
+      responses: { '200': { description: Updated } }
+    delete:
+      tags: [Student]
+      summary: Deactivate recurring rule
+      responses: { '200': { description: Deactivated } }
+  /budgets:
+    get:
+      tags: [Student]
+      summary: List monthly category budgets
+      responses: { '200': { description: Budgets and consumption } }
+    post:
+      tags: [Student]
+      summary: Create or update monthly budget
+      responses: { '200': { description: Updated }, '201': { description: Created } }
+  /budgets/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Student]
+      summary: Get owned budget
+      responses: { '200': { description: Budget } }
+    delete:
+      tags: [Student]
+      summary: Delete owned budget
+      responses: { '200': { description: Deleted } }
+  /dashboard:
+    get:
+      tags: [Student]
+      summary: Consolidated ledger, budgets, tips, alerts, and recent activity
+      responses: { '200': { description: Dashboard } }
+  /reports:
+    get:
+      tags: [Student]
+      summary: Period and category reports
+      responses: { '200': { description: Report } }
+  /reports/exports:
+    post:
+      tags: [Student]
+      summary: Export report as PDF or PNG
+      responses: { '200': { description: File }, '202': { description: Job queued } }
+  /reports/exports/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Student]
+      summary: Download owned report export
+      responses: { '200': { description: File } }
+  /jobs/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Student]
+      summary: Poll owned job status
+      responses: { '200': { description: Job state and output URL } }
+  /admin/usage:
+    get:
+      tags: [Admin]
+      summary: Aggregate-only usage statistics; administrator only
+      security: [{ accessCookie: [] }]
+      responses:
+        '200':
+          description: Usage counts and top five categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Usage' }
+        '403': { description: Administrator required }
+  /admin/content:
+    get:
+      tags: [Admin]
+      summary: List announcements and tip templates
+      security: [{ accessCookie: [] }]
+      parameters:
+        - name: kind
+          in: query
+          schema: { type: string, enum: [announcement, tip_template] }
+      responses:
+        '200':
+          description: Content records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Content' }
+    post:
+      tags: [Admin]
+      summary: Publish system content
+      security: [{ accessCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContentInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentResponse' }
+        '400': { description: Validation error }
+        '403': { description: Administrator or CSRF requirement failed }
+  /admin/content/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      tags: [Admin]
+      summary: Edit title, body, or active state
+      security: [{ accessCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/csrf' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, minLength: 1, maxLength: 100 }
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                is_active: { type: boolean }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContentResponse' }
+        '404': { description: Content not found }
+    delete:
+      tags: [Admin]
+      summary: Deactivate content without destroying history
+      security: [{ accessCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/csrf' }]
+      responses:
+        '200': { description: Deactivated }
+        '404': { description: Content not found }
+  /notifications:
+    get:
+      tags: [Student]
+      summary: List owned notifications, including active system announcements
+      security: [{ accessCookie: [] }]
+      responses:
+        '200': { description: Notifications }
+  /notifications/{id}/read:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Student]
+      summary: Mark owned notification read
+      responses: { '200': { description: Updated notification } }
+  /notifications/{id}/dismiss:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Student]
+      summary: Dismiss owned notification
+      responses: { '200': { description: Updated notification } }
+  /tips:
+    get:
+      tags: [Student]
+      summary: List owned deterministic tips and active system tip templates
+      security: [{ accessCookie: [] }]
+      responses:
+        '200': { description: Tips }
+  /tips/{key}/pin:
+    post:
+      tags: [Student]
+      summary: Toggle tip pin
+      parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated tip state } }
+  /tips/{key}/bookmark:
+    post:
+      tags: [Student]
+      summary: Toggle tip bookmark
+      parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated tip state } }
+  /tips/{key}/dismiss:
+    post:
+      tags: [Student]
+      summary: Dismiss tip
+      parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Updated tip state } }
+  /admin/login:
+    post:
+      tags: [Admin]
+      summary: Administrator sign-in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses: { '200': { description: Signed in } }
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List account profiles
+      responses: { '200': { description: Users } }
+  /admin/users/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Admin]
+      summary: View account profile
+      responses: { '200': { description: User } }
+  /admin/users/{id}/disable:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Admin]
+      summary: Disable account and revoke sessions
+      responses: { '200': { description: Disabled } }
+  /admin/users/{id}/sessions/revoke:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Admin]
+      summary: Revoke account sessions
+      responses: { '200': { description: Revoked } }
+  /admin/users/{id}/password-reset:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Admin]
+      summary: Send password-reset code to account email
+      responses: { '200': { description: Reset initiated } }
+  /admin/categories:
+    post:
+      tags: [Admin]
+      summary: Create default system category
+      responses: { '201': { description: Created } }
+  /admin/categories/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    patch:
+      tags: [Admin]
+      summary: Update system category
+      responses: { '200': { description: Updated } }
+    delete:
+      tags: [Admin]
+      summary: Deactivate system category
+      responses: { '200': { description: Deactivated } }

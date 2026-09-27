@@ -71,6 +71,20 @@ flask --app wsgi:app run --port 5000
 Run `flask --app wsgi:app db upgrade` and `seed-categories` again to verify idempotency. An
 existing administrator is preserved by `seed-admin`; it does not change that user's password.
 
+To recover an existing administrator account, configure `SMTP_HOST`, `SMTP_PORT`,
+`SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in the ignored `.env` file and confirm
+that the `ADMIN_EMAIL` mailbox can receive mail. For Gmail SMTP, use 2-Step Verification and
+an app password, not the account password. Start Flask and the frontend, open `/admin`, choose
+**Forgot password?**, enter `ADMIN_EMAIL`, then verify the emailed six-digit code. Only after
+verification does the new-password form appear. It returns to `/admin` for sign-in. Codes expire after 10 minutes; repeat
+requests have a cooldown. Admin recovery always calls the live API, even when the student demo
+uses mock mode. Passwords cannot be retrieved from database hashes. Never print or commit
+SMTP credentials, codes, or `.env`.
+
+If a reset email still contains a link, restart the running Flask process after pulling the
+OTP implementation. A Flask process started before the code change keeps serving the old
+handler. The current email contains a branded six-digit code, not a reset link.
+
 ## Tests and database safety
 
 ```bash
@@ -183,33 +197,33 @@ with at most `REPORT_SYNC_TRANSACTION_LIMIT` transactions (default 500) return t
 directly. Larger exports return a `202` database job. Run
 `flask --app wsgi:app process-report-exports` manually or on a scheduler, poll
 `GET /api/v1/jobs/{id}`, then follow its `download_url`. Export contents are user-scoped.
+PDF and PNG exports use the same ledger data and a shared Campus Coin design: a dark
+header, income/expense/balance cards, category bars, recent activity, and readable
+footers. PDF category sections paginate; PNG height expands with the report content.
 `GET /api/v1/admin/usage` returns aggregate counts only.
+It also returns `most_used_categories` (top five by non-deleted transaction count). Administrators
+manage announcements and tip templates with `GET/POST /api/v1/admin/content` and
+`PATCH/DELETE /api/v1/admin/content/{id}`. Announcements appear as student notifications;
+active templates appear in saving tips and respect each student's pin/bookmark/dismiss state.
+Run `flask --app wsgi:app db upgrade` to create the `system_content` table before using them.
+See the [OpenAPI specification](openapi.yaml) and the root [README](../README.md) for
+installation and the AI-use acknowledgement.
+Start Flask, then open [Swagger UI directly](http://127.0.0.1:5000/api/docs) or
+[through Vite](http://localhost:5173/api/docs) to browse the endpoints. On macOS,
+`localhost:5000` may be answered by AirPlay rather than Flask.
+The raw specification is served at `/api/openapi.yaml`. Swagger UI loads its browser assets from
+a pinned CDN release, so the docs page needs internet access. Sign in through the Swagger admin
+login operation (or the app) before trying protected routes; the docs page obtains a CSRF token
+automatically for mutations. Do not expose evaluation credentials in the specification.
 
-## Optional category suggestions (Phase 5)
+## Category suggestions
 
-The Settings switch saves `ai_consent` through `PATCH /api/v1/users/me` and is off by
-default. A student requests a suggestion explicitly; suggestions never create or edit a
-transaction. `POST /api/v1/categories/suggest` accepts `transaction_type`, `description`,
-and optional `merchant`; `/suggest/batch` accepts up to 20 such objects. The response
-contains `category_id` (or `null` for manual selection), `confidence`, `source`, and a
-short rationale. `POST /api/v1/categories/suggest/feedback` accepts those input fields,
-the final `category_id`, and optional `suggested_category_id` after the user saves.
-Corrections are account-specific and override rules. Rules run before Luna; opt-out,
-missing API credentials, outages, or quotas leave manual entry available.
-
-Set `OPENAI_API_KEY` only on the backend to enable external calls. `AI_CATEGORIZATION_MODEL`
-defaults to `gpt-6-luna`. `AI_DAILY_QUOTA`, `AI_MONTHLY_QUOTA`, and
-`AI_MONTHLY_SPEND_CEILING_USD` limit calls; `AI_RESERVED_COST_USD` conservatively reserves
-budget per call. Tune the reservation to exceed expected cost per request. Description
-and merchant are shortened and common identifiers redacted before submission; only
-hashes, category IDs, token counts, and quota records are persisted. The provider call
-uses strict JSON Schema restricted to active category IDs and `store=false`. No raw
-transaction description or provider response is logged. Disable the switch to stop all
-external submissions immediately; local rules and correction memory remain available.
-
-After deployment, run `flask --app wsgi:app db upgrade` to add the MySQL InnoDB/utf8mb4
-tables for corrections, cache, and quota accounting. Never expose the API key in Vite
-environment variables or browser code.
+Income and expense forms suggest existing categories while the student types. Suggestions
+use category names, related words, and account-scoped correction memory. They are advisory:
+the student confirms or changes the category before saving. No description is sent to an
+AI provider. The existing `/api/v1/categories/suggest`, `/suggest/batch`, and
+`/suggest/feedback` contracts remain available for clients using deterministic rules.
+Legacy AI-related database columns remain for migration compatibility but are inactive.
 
 ## Backup and restore
 

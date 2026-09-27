@@ -25,7 +25,6 @@ export function LiveProfilePage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savingAi, setSavingAi] = useState(false);
   const [error, setError] = useState("");
 
   function load() {
@@ -69,21 +68,6 @@ export function LiveProfilePage() {
     }
   }
 
-  async function toggleAi() {
-    if (!profile || savingAi) return;
-    setSavingAi(true);
-    setError("");
-    try {
-      const updated = await updateLiveProfile({ ai_consent: !profile.ai_consent });
-      setProfile(updated);
-      toast.success(updated.ai_consent ? "AI suggestions enabled." : "AI suggestions disabled.");
-    } catch (requestError) {
-      setError(toServiceError(requestError).error);
-    } finally {
-      setSavingAi(false);
-    }
-  }
-
   return (
     <>
       <PageHeader title="Profile & settings" subtitle="Your saved Campus Coin account details." onOpenMenu={openMenu} />
@@ -121,18 +105,6 @@ export function LiveProfilePage() {
               <div><dt className="text-gray-500">Savings goal</dt><dd className="mt-1 font-medium">₦{Number(profile.savings_goal).toLocaleString()}</dd></div>
               <div><dt className="text-gray-500">Timezone</dt><dd className="mt-1 font-medium">{profile.timezone}</dd></div>
             </dl>
-          </Card>
-          <Card title="AI category suggestions" className="lg:col-span-3">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-gray-700">Ask Luna to suggest categories when local rules cannot match.</p>
-                <p className="mt-1 text-xs text-gray-500">Off by default. When on, a shortened, redacted transaction description may be sent to OpenAI only after you request a suggestion. You always choose the final category.</p>
-              </div>
-              <label className="flex shrink-0 items-center gap-2 text-sm font-medium" htmlFor="ai-consent">
-                <input id="ai-consent" type="checkbox" role="switch" checked={profile.ai_consent} disabled={savingAi} onChange={() => void toggleAi()} className="h-5 w-5 accent-brand" />
-                {profile.ai_consent ? "On" : "Off"}
-              </label>
-            </div>
           </Card>
           <ThemeSettings darkMode={darkMode} onToggle={toggleTheme} />
           <Card title="Close account" className="lg:col-span-3 border border-red-100">

@@ -280,6 +280,66 @@ def test_admin_login_rejects_student(client):
     assert response.status_code == 403
 
 
+def test_existing_admin_can_reset_with_emailed_code(client, app):
+    make_admin(app)
+    requested = post(client, "/api/v1/auth/password/forgot", {"email": "admin@example.com"})
+    assert requested.status_code == 200
+    code = requested.get_json()["meta"]["reset_code"]
+    message = app.extensions["mail_outbox"][-1]
+    assert message["to"] == "admin@example.com"
+    assert code in message["body"]
+    wrong = post(
+        client,
+        "/api/v1/auth/password/verify-code",
+        {
+            "email": "admin@example.com",
+            "code": "999999" if code != "999999" else "888888",
+        },
+    )
+    assert wrong.status_code == 400
+    verified = post(
+        client,
+        "/api/v1/auth/password/verify-code",
+        {
+            "email": "admin@example.com",
+            "code": code,
+        },
+    )
+    assert verified.status_code == 200
+    assert verified.get_json()["data"]["verified"] is True
+    reset = post(
+        client,
+        "/api/v1/auth/password/reset",
+        {
+            "email": "admin@example.com",
+            "code": code,
+            "password": "New-Administrator-123",
+        },
+    )
+    assert reset.status_code == 200
+    signed_in = post(
+        client,
+        "/api/v1/admin/login",
+        {
+            "email": "admin@example.com",
+            "password": "New-Administrator-123",
+        },
+    )
+    assert signed_in.status_code == 200
+    assert signed_in.get_json()["data"]["role"] == "admin"
+    assert (
+        post(
+            client,
+            "/api/v1/auth/password/verify-code",
+            {
+                "email": "admin@example.com",
+                "code": code,
+            },
+        ).status_code
+        == 400
+    )
+
+
 def make_admin(app, email="admin@example.com"):
     with app.app_context():
         admin = User(
@@ -318,3 +378,30 @@ def test_admin_can_view_disable_and_immediately_revoke_user(app):
     with app.app_context():
         sessions = db.session.query(AuthSession).filter_by(user_id=uuid.UUID(student["id"])).all()
         assert sessions and all(session.revoked_at is not None for session in sessions)
+
+
+def test_admin_reset_sends_student_one_time_code(app):
+    student_client = app.test_client()
+    admin_client = app.test_client()
+    register(student_client)
+    make_admin(app)
+    assert admin_login(admin_client).status_code == 200
+    users = admin_client.get("/api/v1/admin/users").get_json()["data"]
+    student = next(item for item in users if item["role"] == "student")
+    response = post(admin_client, f"/api/v1/admin/users/{student['id']}/password-reset")
+    assert response.status_code == 200
+    assert response.get_json()["data"]["initiated"] is True
+    code = response.get_json()["meta"]["reset_code"]
+    assert code in app.extensions["mail_outbox"][-1]["body"]
+    assert (
+        post(
+            student_client,
+            "/api/v1/auth/password/reset",
+            {
+                "email": student["email"],
+                "code": code,
+                "password": "fresh-password-123",
+            },
+        ).status_code
+        == 200
+    )

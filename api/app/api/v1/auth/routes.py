@@ -7,6 +7,7 @@ from app.schemas.auth import (
     RegistrationSchema,
     ResetPasswordSchema,
     VerifyEmailSchema,
+    VerifyResetCodeSchema,
 )
 from app.services.auth import AuthService, TokenPair
 from app.services.email.sender import EmailDeliveryError
@@ -158,6 +159,14 @@ def reset_password():
     else:
         return failure("validation_error", "Email and code are required", status=400)
     return success({"password_reset": True})
+
+
+@auth.post("/password/verify-code")
+def verify_reset_code():
+    payload = VerifyResetCodeSchema().load(request.get_json(silent=True) or {})
+    check_rate_limit("verify_reset_code", request.remote_addr or "unknown")
+    AuthService().verify_password_reset_code(payload["email"], payload["code"])
+    return success({"verified": True})
 
 
 @auth.post("/email/resend")

@@ -1,5 +1,4 @@
-// Mock-mode, on-device category suggestions. Live mode calls the Flask
-// suggestion endpoint only when the student requests a suggestion.
+// Local, deterministic category suggestions for both mock and live modes.
 //
 // Section 7 (learning from corrections): when a student picks a different
 // category than the one suggested, the choice is remembered and wins over
@@ -7,11 +6,16 @@
 // previously corrected description comes back as "high" confidence so the
 // form can pre-select it.
 
-import type { CategorySuggestion, TransactionType } from "../types";
+import type { Category, CategorySuggestion, TransactionType } from "../types";
 import { delay, loadJSON, saveJSON } from "./store";
 import { readCategoriesSync } from "./categoryService";
+import { getAuthSnapshot } from "./api/authState";
+import { DATA_MODE } from "./api/config";
 
-const CORRECTIONS_KEY = "campuscoin.corrections";
+function correctionsKey(): string {
+  const userId = DATA_MODE === "live" ? getAuthSnapshot().user?.id : null;
+  return userId ? `campuscoin.corrections.${userId}` : "campuscoin.corrections.mock";
+}
 
 interface Correction {
   type: TransactionType;
@@ -20,7 +24,7 @@ interface Correction {
 }
 
 function readCorrections(): Correction[] {
-  return loadJSON<Correction[]>(CORRECTIONS_KEY, []);
+  return loadJSON<Correction[]>(correctionsKey(), []);
 }
 
 /** Remembers a manual pick so future suggestions can use it. */
@@ -36,18 +40,19 @@ export function recordCorrection(
   if (list.some((entry) => entry.type === type && entry.text === text && entry.category === chosen)) {
     return;
   }
-  saveJSON(CORRECTIONS_KEY, [...list, { type, text, category: chosen }].slice(-100));
+  saveJSON(correctionsKey(), [...list, { type, text, category: chosen }].slice(-100));
 }
 
 /** Learned pick: exact description first, then repeated words. */
 function learnedCategory(
   description: string,
   type: TransactionType,
+  available: Category[],
 ): { category: string; confidence: "high" | "medium" } | null {
   const text = description.trim().toLowerCase();
   if (!text) return null;
   const corrections = readCorrections().filter((entry) => entry.type === type);
-  const known = new Set(readCategoriesSync().filter((entry) => entry.type === type).map((entry) => entry.name));
+  const known = new Set(available.filter((entry) => entry.type === type).map((entry) => entry.name));
 
   const exact = corrections.filter((entry) => entry.text === text);
   if (exact.length > 0) {
@@ -98,25 +103,38 @@ const INCOME_RULES: Rule[] = [
 export async function suggestCategory(
   description: string,
   type: TransactionType,
+  available: Category[] = readCategoriesSync(),
 ): Promise<CategorySuggestion | null> {
   const text = description.trim().toLowerCase();
   if (!text) return null;
 
   try {
-    const learned = learnedCategory(description, type);
+    const learned = learnedCategory(description, type, available);
     if (learned) {
       return await delay(
-        { category: learned.category, source: "ai", confidence: learned.confidence },
+        { category: learned.category, source: "rules", confidence: learned.confidence },
         250,
       );
     }
 
     const rules = type === "expense" ? EXPENSE_RULES : INCOME_RULES;
-    const match = rules.find((rule) => rule.keywords.some((keyword) => text.includes(keyword)));
-    if (!match) return await delay(null, 250);
-    return await delay({ category: match.category, source: "rules", confidence: "medium" }, 250);
+    const matches = available.filter((entry) => entry.type === type);
+    const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const direct = matches.find((entry) => normalize(entry.name) && text.includes(normalize(entry.name)));
+    if (direct) return await delay({ category: direct.name, source: "rules", confidence: "high" }, 250);
+    const rule = rules.find((item) => item.keywords.some((keyword) => text.includes(keyword)));
+    if (!rule) return await delay(null, 250);
+    const aliases: Record<string, string[]> = {
+      "Hostel/Rent": ["housing", "rent"], Academics: ["tuition", "books"],
+      Subscriptions: ["data", "airtime"], "Part-time job": ["part time work"],
+      "Gig or freelance work": ["other income", "freelance"], Gifts: ["gift"],
+      Miscellaneous: ["other expense"],
+    };
+    const names = [rule.category, ...(aliases[rule.category] ?? [])].map(normalize);
+    const match = matches.find((entry) => names.includes(normalize(entry.name)));
+    return await delay(match ? { category: match.name, source: "rules", confidence: "medium" } : null, 250);
   } catch {
-    // AI unavailable → null. The form simply keeps manual selection.
+    // Suggestions never block manual selection.
     return null;
   }
 }
