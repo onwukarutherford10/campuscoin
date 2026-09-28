@@ -34,9 +34,11 @@ def test_production_accepts_mysql():
         {
             "SECRET_KEY": "a-production-secret-that-is-long-enough",
             "SQLALCHEMY_DATABASE_URI": "mysql+pymysql://user:password@localhost/campuscoin",
-            "SMTP_USERNAME": "mailer@example.com",
-            "SMTP_APP_PASSWORD": "test-app-password",
-            "SMTP_FROM": "mailer@example.com",
+            "BREVO_API_KEY": "xkeysib-test-api-key",
+            "EMAIL_FROM_ADDRESS": "mailer@example.com",
+            "CLOUDINARY_CLOUD_NAME": "campuscoin",
+            "CLOUDINARY_API_KEY": "cloudinary-key",
+            "CLOUDINARY_API_SECRET": "cloudinary-secret",
         },
     )
     assert app.config["SQLALCHEMY_ENGINE_OPTIONS"]["pool_pre_ping"] is True
@@ -44,15 +46,30 @@ def test_production_accepts_mysql():
     assert app.config["WTF_CSRF_CHECK_DEFAULT"] is False
 
 
-def test_production_requires_smtp_credentials():
-    with pytest.raises(RuntimeError, match="Gmail SMTP"):
+def test_production_requires_brevo_credentials():
+    with pytest.raises(RuntimeError, match="Brevo"):
         create_app(
             "production",
             {
                 "SECRET_KEY": "a-production-secret-that-is-long-enough",
                 "SQLALCHEMY_DATABASE_URI": "mysql+pymysql://user:password@localhost/campuscoin",
-                "SMTP_USERNAME": "",
-                "SMTP_APP_PASSWORD": "",
-                "SMTP_FROM": "",
+                "BREVO_API_KEY": "",
+                "EMAIL_FROM_ADDRESS": "",
+            },
+        )
+
+
+def test_production_requires_cloudinary_credentials():
+    with pytest.raises(RuntimeError, match="Cloudinary"):
+        create_app(
+            "production",
+            {
+                "SECRET_KEY": "a-production-secret-that-is-long-enough",
+                "SQLALCHEMY_DATABASE_URI": "mysql+pymysql://user:password@localhost/campuscoin",
+                "BREVO_API_KEY": "xkeysib-test-api-key",
+                "EMAIL_FROM_ADDRESS": "mailer@example.com",
+                "CLOUDINARY_CLOUD_NAME": "",
+                "CLOUDINARY_API_KEY": "",
+                "CLOUDINARY_API_SECRET": "",
             },
         )

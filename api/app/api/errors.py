@@ -5,6 +5,7 @@ from werkzeug.exceptions import HTTPException
 from app.api.responses import failure
 from app.services.auth import AuthError
 from app.services.categories import CategoryError
+from app.services.cloudinary import CloudinaryError
 from app.services.rate_limit import RateLimitExceeded
 from app.services.transactions import LedgerError
 from app.services.users import ProfileError
@@ -18,6 +19,10 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(CategoryError)
     def category_error(error: CategoryError):
         return failure(error.code, error.message, status=error.status)
+
+    @app.errorhandler(CloudinaryError)
+    def cloudinary_error(error: CloudinaryError):
+        return failure("avatar_unavailable", str(error), status=503)
 
     @app.errorhandler(RateLimitExceeded)
     def rate_limit_error(_error: RateLimitExceeded):

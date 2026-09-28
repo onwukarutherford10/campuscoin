@@ -17,9 +17,12 @@ def validate_model(doc,root):
     import jsonschema
     jsonschema.validate(doc,json.loads(SCHEMA.read_text()))
     allowed=set(files(root))
-    for source in doc['provenance']+[f['source'] for f in doc['code_figures']]:
+    editorial_sources=[s for blocks in doc.get('editorial',{}).values() for block in blocks for s in block['sources']]
+    for source in doc['provenance']+[f['source'] for f in doc['code_figures']]+editorial_sources:
         if source['path'] not in allowed or PRIVATE.search(source['path']):
             raise ValueError('Invalid or private evidence path: '+source['path'])
+        if source['end_line']>len((root/source['path']).read_text(errors='replace').splitlines()):
+            raise ValueError('Evidence range exceeds source file: '+source['path'])
     serialized=json.dumps(doc)
     if re.search(r'(?i)://[^\s"/@:]+:[^\s"/@]+@',serialized): raise ValueError('Credentialed URL in model')
     if re.search(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',serialized): raise ValueError('Private key in model')
@@ -89,6 +92,7 @@ def main(argv=None):
     g.add_argument('--output-dir',type=Path)
     g.add_argument('--analysis-only',action='store_true')
     g.add_argument('--format',choices=['pdf','docx','both'],default='pdf')
+    g.add_argument('--editorial',type=Path,help='Optional source-backed narrative JSON merged into the analysis model')
     args=ap.parse_args(argv)
     root=args.repository.resolve()
     if not root.is_dir(): ap.error('repository must be a directory')
@@ -96,7 +100,11 @@ def main(argv=None):
     if out==root or root in out.parents and out.name not in {'.project-docs','project-docs-build'} and not args.output_dir:
         ap.error('unsafe output directory')
     analysis_dir=out/'analysis'; analysis_dir.mkdir(parents=True,exist_ok=True)
-    doc=analyze(root); validate_model(doc,root)
+    doc=analyze(root)
+    if args.editorial:
+        editorial=json.loads(args.editorial.read_text())
+        doc['editorial']=editorial
+    validate_model(doc,root)
     (analysis_dir/'project-documentation.json').write_text(json.dumps(doc,indent=2,ensure_ascii=False))
     for key,name in [('metadata','repository'),('architecture','architecture'),('data_model','database'),('api','api'),('provenance','provenance')]:
         (analysis_dir/f'{name}.json').write_text(json.dumps(doc[key],indent=2,ensure_ascii=False))

@@ -71,15 +71,14 @@ flask --app wsgi:app run --port 5000
 Run `flask --app wsgi:app db upgrade` and `seed-categories` again to verify idempotency. An
 existing administrator is preserved by `seed-admin`; it does not change that user's password.
 
-To recover an existing administrator account, configure `SMTP_HOST`, `SMTP_PORT`,
-`SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in the ignored `.env` file and confirm
-that the `ADMIN_EMAIL` mailbox can receive mail. For Gmail SMTP, use 2-Step Verification and
-an app password, not the account password. Start Flask and the frontend, open `/admin`, choose
+To recover an existing administrator account, configure `BREVO_API_KEY`, `EMAIL_FROM_ADDRESS`,
+and `EMAIL_FROM_NAME` in the ignored `.env` file and confirm that the `ADMIN_EMAIL` mailbox can
+receive mail. The sender address must be verified in Brevo. Start Flask and the frontend, open `/admin`, choose
 **Forgot password?**, enter `ADMIN_EMAIL`, then verify the emailed six-digit code. Only after
 verification does the new-password form appear. It returns to `/admin` for sign-in. Codes expire after 10 minutes; repeat
 requests have a cooldown. Admin recovery always calls the live API, even when the student demo
 uses mock mode. Passwords cannot be retrieved from database hashes. Never print or commit
-SMTP credentials, codes, or `.env`.
+email credentials, codes, or `.env`.
 
 If a reset email still contains a link, restart the running Flask process after pulling the
 OTP implementation. A Flask process started before the code change keeps serving the old
@@ -149,7 +148,7 @@ returned with `+00:00`. Monetary values use `NUMERIC`/`DECIMAL` and Python `Deci
 two-decimal strings. In tests, password reset codes appear in response metadata; production
 never exposes them.
 
-### Gmail email delivery
+### Brevo email delivery
 
 Account verification and password recovery each send a six-digit, single-use code in branded
 HTML and plain-text email. `POST /api/v1/auth/password/forgot` accepts an email and gives the
@@ -157,16 +156,25 @@ same response for known and unknown accounts. The reset screen sends `email`, `c
 `password` to `POST /api/v1/auth/password/reset`. Codes expire after 10 minutes by default,
 have five attempts, and are subject to a 30-second resend cooldown and endpoint rate limits.
 Successful reset revokes existing sessions. Legacy tokenized resets remain accepted for
-already-issued tokens. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM`;
-production startup rejects missing mail credentials. Use a dedicated
-Gmail or Google Workspace account with 2-Step Verification and a Gmail app password. Do not put
-the normal Google account password in the environment. The default connection is
-`smtp.gmail.com:465` over TLS.
+already-issued tokens. Configure `BREVO_API_KEY`, `EMAIL_FROM_ADDRESS`, and `EMAIL_FROM_NAME`;
+production startup rejects a missing API key or sender address. `EMAIL_FROM_ADDRESS` must be a
+sender verified in Brevo. Email is sent through Brevo's HTTPS API, which works on hosts that
+block outbound SMTP ports.
 
 Authenticated but unverified students can call `POST /api/v1/auth/email/resend` and
 `POST /api/v1/auth/email/verify`. Other protected student endpoints return
 `email_verification_required` until verification succeeds. Existing accounts are marked verified
 when the verification migration is applied.
+
+### Profile photos and account deletion
+
+Profile photo uploads use short-lived signatures from
+`POST /api/v1/users/me/avatar/upload-signature`; the browser uploads the image directly to
+Cloudinary, then attaches the returned public ID with `PUT /api/v1/users/me/avatar`. Configure
+`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` on the API host. Never
+expose the API secret in frontend variables. `DELETE /api/v1/users/me/avatar` removes the current
+photo, while `DELETE /api/v1/users/me` permanently deletes the signed-in student account and its
+owned financial data.
 
 Run `flask --app wsgi:app db upgrade` to add the MySQL reset-attempt column. The dashboard
 has accessible breadcrumbs and a persistent light/dark switch; neither changes financial data.

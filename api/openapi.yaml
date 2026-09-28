@@ -146,6 +146,24 @@ paths:
       tags: [Student]
       summary: Update current profile
       responses: { '200': { description: Updated profile } }
+    delete:
+      tags: [Student]
+      summary: Permanently delete the current student account
+      responses: { '200': { description: Account deleted } }
+  /users/me/avatar/upload-signature:
+    post:
+      tags: [Student]
+      summary: Create a signed Cloudinary profile photo upload
+      responses: { '200': { description: Short-lived upload parameters } }
+  /users/me/avatar:
+    put:
+      tags: [Student]
+      summary: Attach an uploaded Cloudinary profile photo
+      responses: { '200': { description: Updated profile } }
+    delete:
+      tags: [Student]
+      summary: Remove the current profile photo
+      responses: { '200': { description: Updated profile } }
   /categories:
     get:
       tags: [Student]

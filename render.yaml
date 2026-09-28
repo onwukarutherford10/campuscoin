@@ -21,10 +21,6 @@ services:
         value: INFO
       - key: COOKIE_SECURE
         value: "true"
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "465"
       - key: ADMIN_NAME
         value: CampusCoin Admin
       # Generated once by Render and never written back to this file.
@@ -40,11 +36,11 @@ services:
         sync: false
       - key: FRONTEND_BASE_URL
         sync: false
-      - key: SMTP_USERNAME
+      - key: BREVO_API_KEY
         sync: false
-      - key: SMTP_APP_PASSWORD
+      - key: EMAIL_FROM_ADDRESS
         sync: false
-      - key: SMTP_FROM
-        sync: false
+      - key: EMAIL_FROM_NAME
+        value: Campus Coin
       - key: ADMIN_EMAIL
         sync: false

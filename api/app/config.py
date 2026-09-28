@@ -49,11 +49,12 @@ class BaseConfig:
     EMAIL_CODE_TTL = timedelta(minutes=int(os.getenv("EMAIL_CODE_MINUTES", "10")))
     EMAIL_RESEND_COOLDOWN = timedelta(seconds=int(os.getenv("EMAIL_RESEND_SECONDS", "30")))
     EMAIL_CODE_MAX_ATTEMPTS = int(os.getenv("EMAIL_CODE_MAX_ATTEMPTS", "5"))
-    SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
-    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
-    SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD", "")
-    SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USERNAME)
+    BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+    EMAIL_FROM_ADDRESS = os.getenv("EMAIL_FROM_ADDRESS", "")
+    EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "Campus Coin")
+    CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+    CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
     FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
     ACCESS_COOKIE_NAME = "campuscoin_access"
     REFRESH_COOKIE_NAME = "campuscoin_refresh"
@@ -117,12 +118,13 @@ class ProductionConfig(BaseConfig):
             raise RuntimeError("Production SECRET_KEY must be at least 32 characters")
         if make_url(config["SQLALCHEMY_DATABASE_URI"]).get_backend_name() != "mysql":
             raise RuntimeError("Production requires MySQL")
-        if (
-            not config["SMTP_USERNAME"]
-            or not config["SMTP_APP_PASSWORD"]
-            or not config["SMTP_FROM"]
+        if not config["BREVO_API_KEY"] or not config["EMAIL_FROM_ADDRESS"]:
+            raise RuntimeError("Production Brevo email credentials must be configured")
+        if not all(
+            config[key]
+            for key in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET")
         ):
-            raise RuntimeError("Production Gmail SMTP credentials must be configured")
+            raise RuntimeError("Production Cloudinary credentials must be configured")
 
 
 CONFIGS = {

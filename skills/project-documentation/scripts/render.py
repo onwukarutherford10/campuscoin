@@ -166,6 +166,23 @@ def er_specs(doc):
     return groups
 
 
+def editorial_story(doc,key):
+    result=[]
+    for block in doc.get('editorial',{}).get(key,[]):
+        result.append(heading(block['title'],'Section'))
+        result.extend(P(paragraph) for paragraph in block['paragraphs'])
+        result.append(P('Sources: '+', '.join(source_text(s) for s in block['sources']),'Caption'))
+    return result
+
+
+def reference_rows(doc):
+    sources=doc['provenance'][:]
+    sources.extend(s for blocks in doc.get('editorial',{}).values() for block in blocks for s in block['sources'])
+    unique={}
+    for s in sources: unique[s['path']]=min(unique.get(s['path'],s['start_line']),s['start_line'])
+    return [[path,str(line)] for path,line in sorted(unique.items())]
+
+
 def render(doc,path,diagrams_dir):
     path=Path(path); path.parent.mkdir(parents=True,exist_ok=True); diagrams_dir=Path(diagrams_dir); diagrams_dir.mkdir(parents=True,exist_ok=True)
     a=architecture_spec(doc); (diagrams_dir/'architecture.json').write_text(json.dumps(a,indent=2))
@@ -176,20 +193,28 @@ def render(doc,path,diagrams_dir):
     story += [P('Contents','Chapter'),Spacer(1,8)]
     toc=TableOfContents(); toc.levelStyles=[styles['TOC']]; story += [toc,PageBreak()]
     d=doc['metadata']; story += [heading('1. Project Overview'),P(f"{title} is classified by repository structure as a {d['type']} project. This report documents discovered source code, manifests, routes, persistence declarations, and tests at the recorded commit. Classification is a structural inference rather than a runtime deployment claim."),P('Evidence: '+', '.join(d['manifests'][:4]),'Caption')]
+    story += editorial_story(doc,'overview')
     story += [heading('2. Technology Stack')]
     rows=[['Technology','Repository evidence']]
-    for f in d['frameworks']: rows.append([f,', '.join(d['manifests'][:3])])
+    for f in d['frameworks']:
+        manifests=d['manifests']
+        evidence='package.json' if f in {'React','Vite','Next.js','Express','NestJS'} and 'package.json' in manifests else ('api/pyproject.toml' if f in {'Flask','Django','FastAPI'} and 'api/pyproject.toml' in manifests else ', '.join(manifests[:2]))
+        rows.append([f,evidence])
     for l in d['languages'][:6]: rows.append([l['name'],f"{l['files']} source files"])
     if len(rows)>1: story += [table(rows,[WIDTH*.37,WIDTH*.63]),Spacer(1,10)]
+    story += editorial_story(doc,'technology')
     story += [heading('3. System Architecture'),P('The component view reflects source directories and declared integration points. Arrows show likely call direction across recognized layers; verify individual flows against the referenced modules.'),Diagram(a,height=min(370,max(210,55*len(a['nodes'])))),P('Figure 1. Repository component architecture.','Caption')]
+    story += editorial_story(doc,'architecture')
     comps=doc['architecture']['components']
     if comps:
         story += [heading('4. Component Architecture'),table([['Component','Files','Example evidence']]+[[g['name'],str(g['count']),source_text(g['sources'][0])] for g in comps],[WIDTH*.35,WIDTH*.1,WIDTH*.55])]
+        story += editorial_story(doc,'components')
     db=doc['data_model']
     if db['tables']:
         story += [heading('5. Database Design')]
         if db.get('dialect'): story += [P(f"Configured database dialect: {db['dialect']}. Evidence: {source_text(db['dialect_source'])}.")]
         story += [P(f"Static analysis found {len(db['tables'])} {db.get('technology') or 'schema'} model declarations. Migration operations are cross-referenced where present. The ER panels show a bounded selection of columns and relationships; the table descriptions give fields declared directly on each model."),P(f"Detected migration operations: {len(db['migrations'])}.",'Caption')]
+        story += editorial_story(doc,'database')
         for i,e in enumerate(ers,1):
             relations=', '.join(f"{q['from']}.{q['label']} to {q['to']}" for q in e['edges']) or 'No foreign keys are visible within this panel.'
             story += [P(f'Entity relationship panel {i}','Section'),Diagram(e,height=math.ceil(len(e['nodes'])/2)*112+30),P(f'Figure {i+1}. Entity relationships, panel {i}.','Caption'),P('Visible relationships: '+relations,'SmallReport'),Spacer(1,8)]
@@ -201,6 +226,7 @@ def render(doc,path,diagrams_dir):
     api=doc['api']['routes']
     if api:
         story += [heading('6. API Design'),P(f"Static decorator analysis identified {len(api)} route handlers. Authentication labels reflect decorators present directly on handlers. Named request schemas are listed where explicit. Response schemas are not inferred from handler names.")]
+        story += editorial_story(doc,'api')
         groups=sorted(set(r['group'] for r in api))
         for group in groups:
             items=[r for r in api if r['group']==group]
@@ -211,26 +237,34 @@ def render(doc,path,diagrams_dir):
     section_number=7
     if doc.get('security'):
         story += [heading(f'{section_number}. Authentication and Security'),P('These controls were identified from executable source patterns. The list does not represent a complete security audit.'),table([['Control','Implementation evidence']]+[[x['name'],source_text(x['source'])] for x in doc['security']],[WIDTH*.55,WIDTH*.45])]
+        story += editorial_story(doc,'security')
+        section_number+=1
+    if doc.get('editorial',{}).get('workflows'):
+        story += [heading(f'{section_number}. Important Workflows')]+editorial_story(doc,'workflows')
         section_number+=1
     if doc.get('background_processing') or doc.get('integrations'):
         story += [heading(f'{section_number}. Operations and Integrations'),P('Commands and integration boundaries below are source declarations. Their production scheduling or availability is not established by these declarations alone.')]
         if doc.get('background_processing'): story += [table([['Command','Source']]+[[x['name'],source_text(x['source'])] for x in doc['background_processing']],[WIDTH*.5,WIDTH*.5]),Spacer(1,8)]
         if doc.get('integrations'): story += [table([['Integration','Source']]+[[x['name'],source_text(x['source'])] for x in doc['integrations']],[WIDTH*.5,WIDTH*.5])]
+        story += editorial_story(doc,'operations')
         section_number+=1
     tests=doc['testing']['files']
     if tests:
         from collections import Counter
         groups=Counter('/'.join(p.split('/')[:3]) if len(p.split('/'))>3 else '/'.join(p.split('/')[:2]) for p in tests)
         story += [heading(f'{section_number}. Testing Strategy'),P(f"The repository contains {len(tests)} discovered test files. This count indicates test presence, not measured coverage or passing status."),table([['Test area','Files']]+[[k,str(v)] for k,v in sorted(groups.items())],[WIDTH*.78,WIDTH*.22])]
+        story += editorial_story(doc,'testing')
     if tests: section_number+=1
     if doc['code_figures']:
         story += [heading(f'{section_number}. Selected Implementation')]
+        story += editorial_story(doc,'implementation')
         for i,f in enumerate(doc['code_figures'],1):
             story += [KeepTogether([heading(f['caption'],'Section'),P(f['explanation']),CodeFigure(f),P(f"Figure {i+len(ers)+1}. Lines {f['start_line']}-{f['end_line']} of {f['path']}.",'Caption')])]
     if doc['code_figures']: section_number+=1
     if doc['limitations']:
         story += [heading(f'{section_number}. Limits of Repository Evidence')]
+        story += editorial_story(doc,'limitations')
         for x in doc['limitations']: story += [P('• '+x)]
-    story += [heading('Implementation References'),P('All paths below are relative to the repository root. The JSON analysis artifact retains source ranges for each machine-generated claim.'),table([['Evidence path','Line']]+[[s['path'],str(s['start_line'])] for s in doc['provenance'][:5]],[WIDTH*.78,WIDTH*.22])]
+    story += [heading('Implementation References'),P('All paths below are relative to the repository root. The JSON analysis artifact retains source ranges for each machine-generated and editorial claim.'),table([['Evidence path','Line']]+reference_rows(doc),[WIDTH*.78,WIDTH*.22])]
     Report(path,title).multiBuild(story)
     return path

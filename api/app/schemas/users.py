@@ -21,3 +21,7 @@ class ProfileUpdateSchema(Schema):
     income_source_category_ids = fields.List(fields.UUID())
     spending_category_ids = fields.List(fields.UUID())
     onboarding_completed = fields.Boolean()
+
+
+class AvatarUpdateSchema(Schema):
+    public_id = fields.String(required=True, validate=validate.Length(min=1, max=255))
