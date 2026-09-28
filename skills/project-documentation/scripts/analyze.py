@@ -260,7 +260,11 @@ def code_figures(root, paths, arch, db, api):
     for group in ['HTTP routes','Application services','Persistence layer']:
         g=next((g for g in arch['components'] if g['name']==group),None)
         if g:
-            source_paths=[s['path'] for s in g['sources'] if not s['path'].endswith('__init__.py')]
+            layer_pattern={'HTTP routes':r'/routes\.(py|ts|js)$', 'Application services':r'/services/.+\.(py|ts|js)$', 'Persistence layer':r'/models/.+\.(py|ts|js)$'}[group]
+            source_paths=[p for p in paths if re.search(layer_pattern,p) and not p.endswith('__init__.py')]
+            priority={'HTTP routes':r'/(auth|transactions?)/', 'Application services':r'/(transactions?|auth)\.', 'Persistence layer':r'/(transactions?|auth|user)\.'}.get(group)
+            if priority:
+                source_paths.sort(key=lambda path:(not bool(re.search(priority,path)),path))
             if source_paths: candidates.append((group,source_paths[0]))
     figures=[]; seen=set()
     for group,path in candidates:

@@ -1,0 +1,665 @@
+{
+  "overview": [
+    {
+      "title": "Purpose and scope",
+      "paragraphs": [
+        "CampusCoin is a student personal finance application. Its browser interface presents account onboarding, transactions, budgets, categories, reports, profile settings, and a separate administrator view. The server supplies the versioned API and persists users, ledger records, planning data, sessions, jobs, and system content. The report describes the behavior visible in this repository at the recorded commit; it does not assume any particular hosted deployment.",
+        "The application has two frontend data modes. Live mode calls the Flask API; mock mode permits a local demonstration. The repository README describes live mode as the intended default, while the mode parser falls back to mock when the variable is absent. A deployment or developer session therefore needs an explicit mode setting when live behavior is expected."
+      ],
+      "sources": [
+        {
+          "path": "src/App.tsx",
+          "start_line": 1,
+          "end_line": 100,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "src/services/api/config.ts",
+          "start_line": 1,
+          "end_line": 10,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "README.md",
+          "start_line": 1,
+          "end_line": 10,
+          "evidence_type": "documentation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Functional boundaries",
+      "paragraphs": [
+        "Students record income and expenses against categories, inspect spending by period, set category budgets, generate reports, and manage recurring entries. Administrators use distinct routes for account controls, system categories, statistics, and published content. The distinction is enforced on the server through role checks rather than by the visibility of the administrator page alone.",
+        "The ledger is the central source for financial summaries. Planning services query transaction data to calculate budget consumption and reports; report export then turns a calculated snapshot into PDF or PNG. This separates account records and calculations from the presentation of downloadable reports."
+      ],
+      "sources": [
+        {
+          "path": "src/App.tsx",
+          "start_line": 60,
+          "end_line": 100,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/utils/security.py",
+          "start_line": 34,
+          "end_line": 56,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/reports.py",
+          "start_line": 21,
+          "end_line": 40,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "technology": [
+    {
+      "title": "Browser and server composition",
+      "paragraphs": [
+        "The browser application is written in React and TypeScript and uses React Router to connect public, onboarding, protected student, and administrator screens. The Flask application is constructed by an app factory that initializes persistence, migrations, CSRF support, credentialed CORS, error handling, health endpoints, documentation, and the API blueprint under /api/v1.",
+        "The API factory configures MySQL tables for InnoDB and utf8mb4 and sets the MySQL session time zone to UTC. Local tests may use SQLite, while the non-test configuration requires a MySQL connection. These are repository configuration choices, not evidence that a production database has been provisioned."
+      ],
+      "sources": [
+        {
+          "path": "src/App.tsx",
+          "start_line": 1,
+          "end_line": 100,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 16,
+          "end_line": 72,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/config.py",
+          "start_line": 16,
+          "end_line": 131,
+          "evidence_type": "configuration",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "architecture": [
+    {
+      "title": "Request path and responsibilities",
+      "paragraphs": [
+        "A live browser request passes through the API client with cookies attached. For a state-changing operation, the client sends the CSRF header and can retry once after a session refresh when it receives an unauthorized response. Flask routes parse inputs and invoke services; services enforce ownership and business rules before repositories or the ORM read and write records. The broad component diagram is a map of these layers, while individual service methods provide the evidence for each flow.",
+        "Authentication is cookie based. The browser stores neither an access token nor a refresh token in local storage in this client path. The access and refresh cookies are created by the authentication routes, while a separate CSRF cookie supplies the value echoed in a request header."
+      ],
+      "sources": [
+        {
+          "path": "src/services/api/client.ts",
+          "start_line": 95,
+          "end_line": 220,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/api/v1/auth/routes.py",
+          "start_line": 21,
+          "end_line": 47,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/utils/security.py",
+          "start_line": 12,
+          "end_line": 56,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Separation of concerns",
+      "paragraphs": [
+        "The route modules are grouped by function, including authentication, transactions, budgets, reports, administration, notifications, and jobs. Service classes contain the main ledger, planning, import, recurrence, and export behavior. Repository classes express reusable data access. This layout indicates a modular application within one Flask API, not independent microservices.",
+        "The frontend keeps route selection and access gates in its application router. Protected pages require a session, and the onboarding gate redirects a live user according to completion status. The administrator entry is a separate page, but the API must still authorize every protected administrator operation."
+      ],
+      "sources": [
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 39,
+          "end_line": 45,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/transactions.py",
+          "start_line": 35,
+          "end_line": 100,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "src/App.tsx",
+          "start_line": 25,
+          "end_line": 100,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "title": "Ledger and planning services",
+      "paragraphs": [
+        "TransactionService validates the acting owner, category, amount, type, and timestamp before creating or changing a transaction. It writes revisions and audit records alongside ledger changes. PlanningService works from the user's transactions to calculate period totals, category spending, budget status, dashboard data, and report data. Amounts use decimal values and a two-decimal validation rule so that routine money calculations do not depend on binary floating point representation.",
+        "RecurrenceService stores rules separately from materialized transactions. It selects due rules for a user, locks them during materialization, and checks whether a transaction already exists for a rule and scheduled time before creating one. The database also has a unique constraint on that pair. These layers reduce duplicate entries when materialization is requested repeatedly."
+      ],
+      "sources": [
+        {
+          "path": "api/app/services/transactions.py",
+          "start_line": 35,
+          "end_line": 155,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/planning.py",
+          "start_line": 18,
+          "end_line": 115,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/recurrence.py",
+          "start_line": 71,
+          "end_line": 122,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/models/transaction.py",
+          "start_line": 34,
+          "end_line": 43,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Administration and content",
+      "paragraphs": [
+        "The administrator API includes usage statistics, account inspection and disabling, session revocation, system category management, and content publishing. A system-content model and service support administrator-managed material that can be shown to students. These operations are part of the same API and database boundary as student features; the role check provides the authorization distinction.",
+        "The category suggestion feature is local and deterministic in the current implementation. It first checks remembered account-specific corrections, then looks for category names and configured word patterns in a shortened description and merchant string. When no match is found, it returns a manual-choice result. Its name and the presence of consent fields do not establish a call to an external AI model."
+      ],
+      "sources": [
+        {
+          "path": "api/app/api/v1/admin/routes.py",
+          "start_line": 21,
+          "end_line": 202,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/models/system_content.py",
+          "start_line": 12,
+          "end_line": 26,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/ai/categorization.py",
+          "start_line": 41,
+          "end_line": 132,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "database": [
+    {
+      "title": "Ownership and ledger history",
+      "paragraphs": [
+        "The users table anchors account-owned data. Transactions carry owner and category foreign keys, an amount with Numeric(14,2), an occurrence time, a source label, optional import fingerprint, optional recurrence link, and an optional deletion timestamp. Transaction revisions store numbered snapshots and actions such as creation, update, deletion, and restoration. Activity records track recent viewing and editing separately from the financial event itself.",
+        "The database design uses explicit foreign keys and indexes in addition to ORM relationships. For example, owner plus occurrence time is indexed for transaction retrieval, and a rule plus scheduled time must be unique for generated entries. The ER panels divide the discovered schema into readable groups; a panel is a visual summary, not a replacement for migration inspection."
+      ],
+      "sources": [
+        {
+          "path": "api/app/models/user.py",
+          "start_line": 29,
+          "end_line": 63,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/models/transaction.py",
+          "start_line": 34,
+          "end_line": 110,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Supporting data and migrations",
+      "paragraphs": [
+        "Additional tables represent authentication sessions and reset tokens, category and onboarding choices, budgets and notifications, recurring rules, CSV import previews, jobs and report exports, audit events, category correction memory, and system content. The model inventory is cross-referenced with Alembic migration operations in the generated JSON. A model declaration describes current application expectations; the migration chain explains how a database is brought to that state.",
+        "Time values are represented through UTC-aware application types and MySQL session UTC configuration. User profiles retain a time zone; PlanningService converts a user's calendar month into UTC bounds before querying spending. This distinction is important because a month boundary in Africa/Lagos is not the same instant as a month boundary in UTC."
+      ],
+      "sources": [
+        {
+          "path": "api/app/models/transaction.py",
+          "start_line": 113,
+          "end_line": 134,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/models/ai.py",
+          "start_line": 15,
+          "end_line": 57,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/planning.py",
+          "start_line": 18,
+          "end_line": 28,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 54,
+          "end_line": 72,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "api": [
+    {
+      "title": "Versioned interface and response convention",
+      "paragraphs": [
+        "The app factory mounts the API at /api/v1. Route groups follow the domain areas of the interface, making the endpoint inventory useful for locating implementation rather than merely counting URLs. A successful JSON response is wrapped under data with optional meta; failures place a code, message, and optional field detail under error. Consumers should follow this envelope and the HTTP status rather than assume a raw domain object is returned.",
+        "The route table below is generated from decorators in source. It identifies methods, paths, local authentication decorators, and source locations. Request schemas are named only where the handler explicitly loads one. The table is a navigation aid; exact request fields, errors, and side effects must be read from the route and service evidence."
+      ],
+      "sources": [
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 39,
+          "end_line": 45,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/api/responses.py",
+          "start_line": 1,
+          "end_line": 11,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/api/v1/transactions/routes.py",
+          "start_line": 18,
+          "end_line": 120,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Reports and asynchronous responses",
+      "paragraphs": [
+        "The reports API accepts a period or explicit timezone-aware date bounds, optional category and transaction-type filters, and offers a dashboard summary. An export request chooses PDF or PNG. ReportService renders smaller results immediately; above the configured transaction threshold it records a job and returns an accepted response with a status URL. A completed export is downloaded through an owner-scoped endpoint.",
+        "The API also exposes job status and import-related operations. Job records are stored in the database, and commands process pending work. This is an application-managed job mechanism; the repository alone does not establish an external queue broker or a running production scheduler."
+      ],
+      "sources": [
+        {
+          "path": "api/app/api/v1/reports/routes.py",
+          "start_line": 16,
+          "end_line": 67,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/reports.py",
+          "start_line": 21,
+          "end_line": 110,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/api/v1/jobs/routes.py",
+          "start_line": 1,
+          "end_line": 18,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "security": [
+    {
+      "title": "Session and request protection",
+      "paragraphs": [
+        "Registration normalizes the email and stores a password hash. Login verifies that hash and checks account status and, for administrator login, the role. Token issuance creates a database-backed session, stores a digest of the refresh token, and issues an access token. Refresh rotates the stored digest. Access resolution checks both token claims and the persisted session, so session revocation has a server-side effect.",
+        "State-changing API requests must present the CSRF cookie value in an X-CSRF-Token header. A protected handler resolves the access cookie, then enforces any administrator or verified-email requirement before setting the current user in request context. Cookie flags are configured centrally; production configuration applies Secure and SameSite behavior. These controls are visible in source but do not substitute for a penetration test or a review of deployment configuration."
+      ],
+      "sources": [
+        {
+          "path": "api/app/services/auth.py",
+          "start_line": 55,
+          "end_line": 117,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/auth.py",
+          "start_line": 213,
+          "end_line": 272,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/utils/security.py",
+          "start_line": 12,
+          "end_line": 56,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/api/v1/auth/routes.py",
+          "start_line": 21,
+          "end_line": 47,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Recovery and account boundaries",
+      "paragraphs": [
+        "Password recovery uses a six-digit code sent by email. The service stores an HMAC digest rather than the code itself, checks expiry and attempt limits, and revokes existing sessions after a successful reset. Email delivery therefore matters to the recovery path; a deployment without working SMTP cannot assume that recovery completes.",
+        "Ledger and export operations scope lookups by the current user's identifier. Category selection also checks whether a category is shared or belongs to the actor. These owner checks protect account separation at the service boundary in addition to route-level authentication."
+      ],
+      "sources": [
+        {
+          "path": "api/app/services/auth.py",
+          "start_line": 140,
+          "end_line": 197,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/transactions.py",
+          "start_line": 35,
+          "end_line": 155,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/reports.py",
+          "start_line": 67,
+          "end_line": 76,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "title": "Creating and revising a transaction",
+      "paragraphs": [
+        "The signed-in student submits transaction data through a protected route. The route parses its request and passes the current user to TransactionService. The service validates amount, type, time, and category ownership, writes the transaction, records a numbered revision snapshot and audit event, then commits. An update follows the same ownership boundary and creates another revision. A deletion sets a deletion timestamp; restoration clears it while preserving the historical record.",
+        "The revision series explains what changed over time without replacing the current transaction row. It is also distinct from transaction activity, which records viewing or editing metadata. This distinction matters when interpreting a user's ledger history or building an audit view."
+      ],
+      "sources": [
+        {
+          "path": "api/app/api/v1/transactions/routes.py",
+          "start_line": 33,
+          "end_line": 120,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/transactions.py",
+          "start_line": 35,
+          "end_line": 155,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/models/transaction.py",
+          "start_line": 72,
+          "end_line": 110,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Importing a CSV file",
+      "paragraphs": [
+        "Import begins with preview. The service checks the field mapping, parses rows, resolves categories, marks duplicate fingerprints, and records row errors in an import batch with an expiry time. Preview does not itself create ledger entries. Confirmation locks the user's batch, rejects an expired preview, and either imports eligible rows immediately or creates a database job when the configured synchronous row limit is exceeded.",
+        "The import worker claims a pending job with a row lock, calls TransactionService for each eligible row, and records success or failure. Confirmation also returns an already-confirmed result when the batch has been processed before. These steps make the preview and commit boundary explicit to the user and limit accidental duplicate imports."
+      ],
+      "sources": [
+        {
+          "path": "api/app/services/imports.py",
+          "start_line": 27,
+          "end_line": 190,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Materializing a recurring entry",
+      "paragraphs": [
+        "A recurring rule records the owner, category, amount, cadence, and next due time. When materialization runs for a user, the service locks due active rules and advances each scheduled instant up to the requested horizon. Before creating a ledger entry it looks for the same rule and scheduled instant; the transaction table's unique constraint enforces the same identity at persistence level.",
+        "The service creates resulting transactions through TransactionService and commits the batch after advancing the rule. The code caps iterations per rule, so a very long backlog is bounded per call. The repository shows this behavior; it does not prove a particular production timer invokes it at a fixed interval."
+      ],
+      "sources": [
+        {
+          "path": "api/app/services/recurrence.py",
+          "start_line": 71,
+          "end_line": 133,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/models/transaction.py",
+          "start_line": 34,
+          "end_line": 43,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Preparing a report export",
+      "paragraphs": [
+        "The report route validates filter values and obtains a report from PlanningService. Export selection accepts PDF or PNG. For a report below the configured transaction limit, the renderer returns a downloadable response directly. For a larger report, ReportService creates or reuses an idempotent job and returns HTTP 202 with a status URL. A worker later renders and stores the export for owner-scoped download.",
+        "The report renderer formats income, expenses, net balance, dates, and category data from the calculated report. Export styling is a presentation concern; the underlying amounts and classifications come from the planning and ledger services."
+      ],
+      "sources": [
+        {
+          "path": "api/app/api/v1/reports/routes.py",
+          "start_line": 16,
+          "end_line": 67,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/reports.py",
+          "start_line": 21,
+          "end_line": 115,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/exports/renderer.py",
+          "start_line": 1,
+          "end_line": 84,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "title": "Configuration and startup",
+      "paragraphs": [
+        "A local live session requires the Flask API, a migrated database, category seed data, and the Vite frontend. Vite proxies /api during development, allowing browser requests and cookies to use one local origin. The API exposes health and readiness routes; startup configuration validates required production settings before the app is served.",
+        "The README contains setup commands and example environment variable names, but this report deliberately omits credential values and connection strings. MySQL and SMTP settings must be supplied privately by the operator. The Vite proxy is a development facility; a deployed frontend requires an appropriate API routing arrangement."
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "start_line": 1,
+          "end_line": 15,
+          "evidence_type": "documentation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 16,
+          "end_line": 52,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/config.py",
+          "start_line": 70,
+          "end_line": 131,
+          "evidence_type": "configuration",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "title": "Jobs and external dependencies",
+      "paragraphs": [
+        "Long CSV imports and large report exports are represented by database jobs. Processing methods claim pending records and record completion or failure. This makes the job state inspectable through the API, but operational reliability still depends on running the relevant commands or workers in the deployment environment.",
+        "Email delivery is used for verification and password recovery. The current category suggestion service does not call an external model; it uses local rules and correction memory. No committed deployment configuration proves a concrete hosting topology, worker schedule, backup policy, or monitoring service, so those operational properties remain undetermined."
+      ],
+      "sources": [
+        {
+          "path": "api/app/services/imports.py",
+          "start_line": 154,
+          "end_line": 190,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/reports.py",
+          "start_line": 86,
+          "end_line": 115,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/ai/categorization.py",
+          "start_line": 66,
+          "end_line": 99,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "testing": [
+    {
+      "title": "Verification approach",
+      "paragraphs": [
+        "The repository includes backend tests and frontend checks. The backend tests exercise application behavior against test configuration, while the frontend scripts can build and check the client. The discovered test-file count below indicates available test code, not measured coverage or a guarantee that every test passes in an arbitrary environment.",
+        "For an operational release, the relevant checks are a migrated database, backend tests, frontend build and client tests, and a manual pass through cookie authentication, CSRF, imports, reports, and administrator controls. This is a recommended verification sequence based on the exposed boundaries, not a claim that a deployment pipeline currently executes each step."
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "start_line": 35,
+          "end_line": 55,
+          "evidence_type": "documentation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 16,
+          "end_line": 52,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "implementation": [
+    {
+      "title": "Reading the selected code",
+      "paragraphs": [
+        "The following figures show bounded source excerpts selected by the skill. Each excerpt illustrates an architectural boundary, such as app assembly, route protection, persistence declarations, or service orchestration. The path and line numbers locate the original implementation; the surrounding explanation describes why the code matters to the system rather than reproducing an entire source file.",
+        "Code figures are sanitized before rendering and remain editable in the DOCX. They are snapshots of this repository state. When changing behavior, consult the live source and tests rather than treating a figure as executable specification."
+      ],
+      "sources": [
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 16,
+          "end_line": 52,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/services/transactions.py",
+          "start_line": 35,
+          "end_line": 85,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    {
+      "title": "What source inspection cannot establish",
+      "paragraphs": [
+        "This report is grounded in code and configuration, not a live environment. It cannot confirm the currently deployed host, database provision, worker schedule, SMTP deliverability, production origin list, or runtime performance. The architecture diagram describes repository components and supported interactions. It should be revised if the deployment arrangement differs from the checked-in source.",
+        "The README's statement about the default frontend data mode conflicts with the source fallback and is called out in the overview. The generated route and schema inventories use static analysis; dynamic registration and runtime database state could add information that is not visible here. The model JSON and source ranges support further review when those details matter."
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "start_line": 1,
+          "end_line": 10,
+          "evidence_type": "documentation",
+          "confidence": "high"
+        },
+        {
+          "path": "src/services/api/config.ts",
+          "start_line": 1,
+          "end_line": 10,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        },
+        {
+          "path": "api/app/__init__.py",
+          "start_line": 16,
+          "end_line": 52,
+          "evidence_type": "implementation",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}

@@ -15,7 +15,7 @@ import pymupdf
 from pygments import lex
 from pygments.lexers import get_lexer_by_name
 from pygments.token import Token
-from render import architecture_spec, er_specs, Diagram, source_text
+from render import architecture_spec, er_specs, Diagram, source_text, reference_rows
 
 NAVY=RGBColor(23,34,53)
 TEAL=RGBColor(30,86,122)
@@ -72,6 +72,13 @@ def caption(doc,text):
 
 def body(doc,text):
     return doc.add_paragraph(str(text),style='Normal')
+
+
+def add_editorial(doc,model,key):
+    for block in model.get('editorial',{}).get(key,[]):
+        heading(doc,block['title'],2)
+        for paragraph in block['paragraphs']:body(doc,paragraph)
+        caption(doc,'Sources: '+', '.join(source_text(s) for s in block['sources']))
 
 
 def heading(doc,text,level=1):
@@ -162,6 +169,7 @@ def render_docx(model,path,figures_dir):
     if model['data_model']['tables']:sections.append('Database Design')
     if model['api']['routes']:sections.append('API Design')
     if model.get('security'):sections.append('Authentication and Security')
+    if model.get('editorial',{}).get('workflows'):sections.append('Important Workflows')
     if model.get('background_processing') or model.get('integrations'):sections.append('Operations and Integrations')
     if model['testing']['files']:sections.append('Testing Strategy')
     if model['code_figures']:sections.append('Selected Implementation')
@@ -174,16 +182,23 @@ def render_docx(model,path,figures_dir):
     heading(d,numbered['Project Overview'])
     body(d,f"{title} is classified by repository structure as a {md['type']} project. This report documents discovered source code, manifests, routes, persistence declarations, and tests at the recorded commit. Classification is a structural inference rather than a runtime deployment claim.")
     caption(d,'Evidence: '+', '.join(md['manifests'][:4]))
+    add_editorial(d,model,'overview')
     heading(d,numbered['Technology Stack'])
     rows=[['Technology','Repository evidence']]
-    rows += [[f,', '.join(md['manifests'][:3])] for f in md['frameworks']]
+    for f in md['frameworks']:
+        manifests=md['manifests']
+        evidence='package.json' if f in {'React','Vite','Next.js','Express','NestJS'} and 'package.json' in manifests else ('api/pyproject.toml' if f in {'Flask','Django','FastAPI'} and 'api/pyproject.toml' in manifests else ', '.join(manifests[:2]))
+        rows.append([f,evidence])
     rows += [[x['name'],f"{x['files']} source files"] for x in md['languages'][:6]]
     if len(rows)>1:add_table(d,rows,[2.4,4.35])
+    add_editorial(d,model,'technology')
     heading(d,numbered['System Architecture'])
     body(d,'The component view reflects source directories and declared integration points. Arrows indicate likely call direction across recognized layers; individual flows should be checked against the referenced modules.')
     add_diagram(d,architecture_spec(model),figures_dir/'architecture.png','Figure 1. Repository component architecture.',height=max(210,55*len(model['architecture']['nodes'])))
+    add_editorial(d,model,'architecture')
     heading(d,numbered['Component Architecture'])
     add_table(d,[['Component','Files','Example evidence']]+[[g['name'],str(g['count']),source_text(g['sources'][0])] for g in model['architecture']['components']],[2.25,.6,3.9])
+    add_editorial(d,model,'components')
     db=model['data_model'];ers=er_specs(model)
     diagrams_dir=figures_dir.parent/'diagrams';diagrams_dir.mkdir(parents=True,exist_ok=True)
     (diagrams_dir/'architecture.json').write_text(json.dumps(architecture_spec(model),indent=2))
@@ -193,6 +208,7 @@ def render_docx(model,path,figures_dir):
         heading(d,numbered['Database Design'])
         if db.get('dialect'):body(d,f"Configured database dialect: {db['dialect']}. Evidence: {source_text(db['dialect_source'])}.")
         body(d,f"Static analysis found {len(db['tables'])} {db.get('technology') or 'schema'} model declarations. Migration operations are cross-referenced where present. Each ER panel shows selected fields and visible relationships.")
+        add_editorial(d,model,'database')
         for i,spec in enumerate(ers,1):
             heading(d,f'Entity relationship panel {i}',2)
             add_diagram(d,spec,figures_dir/f'database-er-{i}.png',f'Figure {i+1}. Entity relationships, panel {i}.',height=((len(spec['nodes'])+1)//2)*112+30)
@@ -207,6 +223,7 @@ def render_docx(model,path,figures_dir):
     if routes:
         heading(d,numbered['API Design'])
         body(d,f"Static decorator analysis identified {len(routes)} route handlers. Authentication labels reflect decorators present directly on handlers. Named request schemas are listed where explicit.")
+        add_editorial(d,model,'api')
         for group in sorted({r['group'] for r in routes}):
             heading(d,group.title(),2)
             add_table(d,[['Method','Route','Auth','Source']]+[[r['method'],r['path'],r['auth'],source_text(r['source'])] for r in routes if r['group']==group],[.65,2.55,1.25,2.3])
@@ -218,11 +235,16 @@ def render_docx(model,path,figures_dir):
         heading(d,numbered['Authentication and Security'])
         body(d,'These controls were identified from executable source patterns. This list does not represent a complete security audit.')
         add_table(d,[['Control','Implementation evidence']]+[[x['name'],source_text(x['source'])] for x in model['security']],[3.4,3.35])
+        add_editorial(d,model,'security')
+    if model.get('editorial',{}).get('workflows'):
+        heading(d,numbered['Important Workflows'])
+        add_editorial(d,model,'workflows')
     if model.get('background_processing') or model.get('integrations'):
         heading(d,numbered['Operations and Integrations'])
         body(d,'Commands and integration boundaries below are source declarations. Production scheduling or availability is not established by these declarations alone.')
         if model.get('background_processing'):add_table(d,[['Command','Source']]+[[x['name'],source_text(x['source'])] for x in model['background_processing']],[3.4,3.35])
         if model.get('integrations'):add_table(d,[['Integration','Source']]+[[x['name'],source_text(x['source'])] for x in model['integrations']],[3.4,3.35])
+        add_editorial(d,model,'operations')
     tests=model['testing']['files']
     if tests:
         heading(d,numbered['Testing Strategy'])
@@ -230,14 +252,17 @@ def render_docx(model,path,figures_dir):
         from collections import Counter
         counts=Counter('/'.join(p.split('/')[:3]) if len(p.split('/'))>3 else '/'.join(p.split('/')[:2]) for p in tests)
         add_table(d,[['Test area','Files']]+[[k,str(v)] for k,v in sorted(counts.items())],[5.6,1.15])
+        add_editorial(d,model,'testing')
     if model['code_figures']:
         heading(d,numbered['Selected Implementation'])
+        add_editorial(d,model,'implementation')
         for i,f in enumerate(model['code_figures'],1):code_figure(d,f,i+len(ers)+1)
     if model['limitations']:
         heading(d,numbered['Limits of Repository Evidence'])
+        add_editorial(d,model,'limitations')
         for text in model['limitations']:body(d,'• '+text)
     heading(d,'Implementation References')
-    body(d,'Paths are relative to the repository root. The JSON analysis artifact retains line ranges for every machine-generated claim.')
-    add_table(d,[['Evidence path','Line']]+[[s['path'],str(s['start_line'])] for s in model['provenance'][:8]],[5.5,1.25])
+    body(d,'Paths are relative to the repository root. The JSON analysis artifact retains line ranges for machine-generated and editorial claims.')
+    add_table(d,[['Evidence path','Line']]+reference_rows(model),[5.5,1.25])
     d.save(path)
     return path

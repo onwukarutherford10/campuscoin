@@ -22,6 +22,13 @@ Use `--output-dir /path/to/build` to put generated artifacts elsewhere. The skil
 
 Use `--format both` for PDF and editable DOCX, or `--format docx` for DOCX only. The default remains PDF. Both renderers consume the same JSON model from a single analysis pass.
 
+For a detailed, source-grounded report, pass `--editorial /path/to/report.json`. This optional JSON object maps section keys (`overview`, `technology`, `architecture`, `components`, `database`, `api`, `security`, `workflows`, `operations`, `testing`, `implementation`, `limitations`) to arrays of blocks. Each block has `title`, `paragraphs` (an array of strings), and `sources` (source records with `path`, `start_line`, `end_line`, `evidence_type`, and `confidence`). Paths are relative to the target repository; private paths and out-of-range lines are rejected. The validated blocks are merged into the same intermediate model used by both renderers. See `docs/technical-report.json` at this repository root for an example.
+
+```bash
+.venv/bin/python scripts/project_docs.py generate /path/to/repository --analysis-only --editorial /path/to/report.json
+.venv/bin/python scripts/project_docs.py generate /path/to/repository --format both --editorial /path/to/report.json
+```
+
 ## Pipeline and artifacts
 
 `analyze.py` performs Git-aware file discovery, manifest/framework detection, Python AST analysis of Flask routes and SQLAlchemy models, bounded Express route and Prisma model parsing, migration cross-referencing, component classification, code excerpt selection, and source-range provenance. The intermediate `analysis/project-documentation.json` follows `schemas/project-documentation.schema.json`. It is the source for all output formats. The renderer does not read target source files.

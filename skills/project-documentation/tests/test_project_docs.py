@@ -47,6 +47,21 @@ class ProjectDocsTests(unittest.TestCase):
         self.assertNotIn('password@',sanitize(text))
         self.assertNotIn('fallback-value',sanitize('SECRET_KEY = os.getenv("SECRET_KEY", "fallback-value")'))
 
+    def test_editorial_evidence_and_rendering(self):
+        tmp,root=self.fixture()
+        with tmp:
+            doc=analyze(root)
+            source={'path':'api/app.py','start_line':3,'end_line':4,'evidence_type':'implementation','confidence':'high'}
+            doc['editorial']={'workflows':[{'title':'Reading items','paragraphs':['The route returns the item list.'],'sources':[source]}]}
+            validate_model(doc,root)
+            out=root/'project-docs-build'
+            pdf=render(doc,out/'output'/'fixture.pdf',out/'diagrams')
+            self.assertIn('Important Workflows','\n'.join(p.get_text() for p in __import__('pymupdf').open(pdf)))
+            editable=render_docx(doc,out/'output'/'fixture.docx',out/'figures')
+            self.assertIn('Reading items','\n'.join(p.text for p in __import__('docx').Document(editable).paragraphs))
+            source['path']='.env'
+            with self.assertRaises(ValueError):validate_model(doc,root)
+
     def test_optional_sections_and_pdf(self):
         tmp,root=self.fixture()
         with tmp:

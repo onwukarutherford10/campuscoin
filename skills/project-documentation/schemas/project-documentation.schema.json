@@ -17,6 +17,7 @@
     "integrations": {"type": "array"},
     "code_figures": {"type": "array", "items": {"type": "object", "required": ["path", "start_line", "end_line", "code", "source"]}},
     "claims": {"type": "array", "items": {"type": "object", "required": ["text", "sources"]}},
+    "editorial": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "object", "required": ["title", "paragraphs", "sources"], "properties": {"title": {"type": "string", "minLength": 1}, "paragraphs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}, "sources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}}}}}},
     "provenance": {"type": "array", "items": {"$ref": "#/$defs/source"}},
     "limitations": {"type": "array", "items": {"type": "string"}}
   },
