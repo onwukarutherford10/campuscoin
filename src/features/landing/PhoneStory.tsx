@@ -132,7 +132,7 @@ export function PhoneStory() {
           className="absolute inset-x-[-20%] top-[-16%] h-[46%]"
           style={{
             background:
-              "radial-gradient(52% 90% at 50% -4%, rgba(110,231,158,0.80) 0%, rgba(110,231,158,0.28) 46%, transparent 76%)",
+              "radial-gradient(52% 90% at 50% -4%, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.28) 46%, transparent 76%)",
           }}
         />
         <div
@@ -140,7 +140,7 @@ export function PhoneStory() {
           className="absolute inset-x-0 bottom-[-30%] h-[60vh]"
           style={{
             background:
-              "radial-gradient(55% 95% at 50% 112%, rgba(110,231,158,0.55) 0%, rgba(110,231,158,0.16) 48%, transparent 78%)",
+              "radial-gradient(55% 95% at 50% 112%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.16) 48%, transparent 78%)",
           }}
         />
         <div className="relative z-10 flex justify-center px-6 py-20">
@@ -169,7 +169,7 @@ export function PhoneStory() {
           className="absolute inset-x-[-20%] top-0 z-0 h-[52%]"
           style={{
             background:
-              "radial-gradient(52% 62% at 50% 50%, rgba(110,231,158,0.72) 0%, rgba(110,231,158,0.26) 46%, transparent 76%)",
+              "radial-gradient(52% 62% at 50% 50%, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.26) 46%, transparent 76%)",
           }}
         />
         <div
@@ -177,12 +177,12 @@ export function PhoneStory() {
           className="story-glow absolute inset-x-[-12%] bottom-0 z-0 h-[64%]"
           style={{
             background:
-              "radial-gradient(55% 56% at 50% 55%, rgba(110,231,158,0.6) 0%, rgba(110,231,158,0.2) 34%, transparent 60%)",
+              "radial-gradient(55% 56% at 50% 55%, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 34%, transparent 60%)",
           }}
         />
         <div
           aria-hidden="true"
-          className="glow-blob -right-40 top-1/2 z-0 h-96 w-96 -translate-y-1/2 [--glow-a:0.25]"
+          className="glow-blob glow-blob-black -right-40 top-1/2 z-0 h-96 w-96 -translate-y-1/2 [--glow-a:0.25]"
         />
 
         {/* Floating financial widgets */}
