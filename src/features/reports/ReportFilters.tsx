@@ -28,6 +28,11 @@ export function ReportFilters({
 
   function update(patch: Partial<FiltersState>) {
     const next = { ...filters, ...patch };
+    if (patch.category) next.source = "";
+    if (patch.source) {
+      next.category = "";
+      next.type = "income";
+    }
     // Income source only applies to income — don't strand an empty result.
     if (next.type === "expense") next.source = "";
     onChange(next);
@@ -42,7 +47,7 @@ export function ReportFilters({
           aria-label="Filter by date range"
           className={selectClass}
         >
-          <option value="all">All dates</option>
+          <option value="all">Last 12 months</option>
           <option value="week">Last 7 days</option>
           <option value="month">This month</option>
           <option value="lastMonth">Last month</option>
@@ -55,7 +60,7 @@ export function ReportFilters({
           aria-label="Filter by month"
           className={selectClass}
         >
-          <option value="">Every month</option>
+          <option value="">Use date range</option>
           {monthOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

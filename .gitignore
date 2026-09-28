@@ -27,3 +27,8 @@ dist-ssr
 # Local planning documents
 api-integration-plan.md
 api/srs.txt
+
+# Generated repository documentation
+.project-docs/
+__pycache__/
+*.pyc

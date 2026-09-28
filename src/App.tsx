@@ -19,9 +19,9 @@ import RequireAuth from "./auth/RequireAuth";
 import { ToastHost } from "./components/ToastHost";
 import { DATA_MODE } from "./services/api/config.ts";
 import { restoreSession } from "./auth/liveAuth.ts";
-import { LiveFeaturePending } from "./components/LiveFeaturePending.tsx";
 import { useLiveAuth } from "./auth/useLiveAuth.ts";
 import { LiveProfilePage } from "./features/profile/LiveProfilePage.tsx";
+import NotFound from "./components/NotFound.tsx";
 
 
 
@@ -78,13 +78,14 @@ const router = createBrowserRouter([
   { path: "/resetpassword", element: <ResetPassword /> },
   { path: "/onboarding", element: <ProtectedOnboarding /> },
   { path: "/onboarding/complete", element: <ProtectedOnboardingComplete /> },
+  {path: "*", element: <NotFound />},
   { element: <ProtectedLayout />,
     children: [
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/transactions", element: <TransactionsPage /> },
       { path: "/budgets", element: <BudgetsPage /> },
       { path: "/categories", element: <CategoriesPage /> },
-      { path: "/reports", element: DATA_MODE === "live" ? <LiveFeaturePending title="Reports" /> : <ReportsPage /> },
+      { path: "/reports", element: <ReportsPage /> },
       { path: "/settings", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
     ],
   },

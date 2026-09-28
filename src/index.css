@@ -25,6 +25,10 @@
 
   --color-canvas: rgb(244 245 244);
   --color-line: rgb(228 231 229);
+
+  --profileImage5: url("images\no-two-ranked-player.jpeg");
+  --notFoundBg: url("src/assets/bgNotfoundcc.jpeg");
+  --mobileNotFoundBg: url("src/assets/NotfoundMobile.jpeg");
 }
 
 :root {
@@ -394,3 +398,14 @@ html {
     transform: none !important;
   }
 }
+
+
+/* NOT FOUND */
+
+.notfoundbg{
+  background-image: url("src/assets/bgNotfoundcc.jpeg");
+  background-position: center;
+  background-size: cover;
+}
+
+

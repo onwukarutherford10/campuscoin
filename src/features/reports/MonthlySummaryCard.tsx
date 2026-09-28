@@ -6,7 +6,7 @@ interface MonthlySummaryCardProps {
   summary: ReportSummary;
 }
 
-/** Totals for the selected period: income, expenses, net and savings. */
+/** Income, expenses, and their net balance for the selected report period. */
 export function MonthlySummaryCard({ summary }: MonthlySummaryCardProps) {
   const stats: { label: string; value: string; tone?: "income" | "danger" }[] = [
     { label: "Total income", value: formatNaira(summary.income), tone: "income" },
@@ -16,16 +16,11 @@ export function MonthlySummaryCard({ summary }: MonthlySummaryCardProps) {
       value: formatNaira(summary.net),
       tone: summary.net < 0 ? "danger" : undefined,
     },
-    {
-      label: "Savings",
-      value: formatNaira(summary.savings),
-      tone: summary.savings < 0 ? "danger" : summary.savings > 0 ? "income" : undefined,
-    },
   ];
 
   return (
-    <Card title="Monthly summary" action={<span className="text-[13px] text-gray-400">{summary.periodLabel}</span>}>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <Card title="Report summary" action={<span className="text-[13px] text-gray-400">{summary.periodLabel}</span>}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-xl border border-line bg-gray-50/60 p-4">
             <p className="text-[12px] font-medium uppercase tracking-wide text-gray-400">{stat.label}</p>

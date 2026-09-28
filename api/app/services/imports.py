@@ -14,7 +14,7 @@ from flask import current_app
 from sqlalchemy import or_, select
 
 from app.extensions import db
-from app.models import Category, CSVImport, JobType, Transaction, User
+from app.models import Category, CSVImport, Job, JobStatus, JobType, Transaction, User
 from app.services.jobs.service import JobService
 from app.services.transactions import LedgerError, TransactionService
 from app.utils.time import as_utc, utcnow
@@ -119,6 +119,13 @@ class ImportService:
                 "status_url": f"/api/v1/jobs/{job.id}",
             }
 
+        result = self._import_rows(user, batch, include_duplicates)
+        db.session.commit()
+        return {**result, "already_confirmed": False}
+
+    @staticmethod
+    def _import_rows(user: User, batch: CSVImport, include_duplicates: bool) -> dict:
+        eligible = [row for row in batch.rows if include_duplicates or not row["duplicate"]]
         service = TransactionService()
         for row in eligible:
             service.create(
@@ -137,14 +144,51 @@ class ImportService:
             )
         batch.status = "completed"
         batch.imported_count = len(eligible)
-        db.session.commit()
         return {
             "import_id": str(batch.id),
             "status": batch.status,
             "imported": batch.imported_count,
             "skipped_duplicates": batch.valid_count - len(eligible),
-            "already_confirmed": False,
         }
+
+    def process_pending(self, limit: int = 10) -> int:
+        processed = 0
+        for _ in range(limit):
+            job = db.session.scalar(
+                select(Job)
+                .where(Job.job_type == JobType.CSV_IMPORT, Job.status == JobStatus.PENDING)
+                .order_by(Job.created_at)
+                .limit(1)
+                .with_for_update(skip_locked=True)
+            )
+            if job is None:
+                break
+            job_id = job.id
+            job.status = JobStatus.RUNNING
+            job.started_at = utcnow()
+            db.session.commit()
+            try:
+                job = db.session.get(Job, job_id)
+                user = db.session.get(User, job.owner_id)
+                if user is None:
+                    raise ValueError("Import owner no longer exists")
+                batch = self._owned(user.id, uuid.UUID(job.payload["import_id"]), for_update=True)
+                result = self._import_rows(
+                    user, batch, bool(job.payload.get("include_duplicates", False))
+                )
+                job.status = JobStatus.SUCCEEDED
+                job.result = result
+                job.finished_at = utcnow()
+                db.session.commit()
+                processed += 1
+            except Exception as exc:
+                db.session.rollback()
+                job = db.session.get(Job, job_id)
+                job.status = JobStatus.FAILED
+                job.error = str(exc)[:500]
+                job.finished_at = utcnow()
+                db.session.commit()
+        return processed
 
     def get(self, user: User, import_id: uuid.UUID) -> CSVImport:
         return self._owned(user.id, import_id)
