@@ -339,6 +339,11 @@ html {
   --glow-rgb: 110 231 158;
 }
 
+/* Black variant — a pure shadow/vignette blob with no colour cast. */
+.glow-blob-black {
+  --glow-rgb: 0 0 0;
+}
+
 /* ─────────────────────────────────────────────────────────────
    Hero background texture
    ───────────────────────────────────────────────────────────── */

@@ -42,7 +42,7 @@ export function HeroSection() {
           /* Peak sits above the section's bottom edge and the gradient reaches
              transparency before it, so the glow is never sliced by the clip. */
           background:
-            "radial-gradient(58% 26% at 50% 70%, rgba(110,231,158,0.58) 0%, rgba(110,231,158,0.20) 46%, transparent 100%)",
+            "radial-gradient(58% 26% at 50% 70%, rgba(38,153,83,0.58) 0%, rgba(38,153,83,0.20) 46%, transparent 100%)",
         }}
       />
       <div
