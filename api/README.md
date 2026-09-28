@@ -71,6 +71,20 @@ flask --app wsgi:app run --port 5000
 Run `flask --app wsgi:app db upgrade` and `seed-categories` again to verify idempotency. An
 existing administrator is preserved by `seed-admin`; it does not change that user's password.
 
+To recover an existing administrator account, configure `SMTP_HOST`, `SMTP_PORT`,
+`SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in the ignored `.env` file and confirm
+that the `ADMIN_EMAIL` mailbox can receive mail. For Gmail SMTP, use 2-Step Verification and
+an app password, not the account password. Start Flask and the frontend, open `/admin`, choose
+**Forgot password?**, enter `ADMIN_EMAIL`, then verify the emailed six-digit code. Only after
+verification does the new-password form appear. It returns to `/admin` for sign-in. Codes expire after 10 minutes; repeat
+requests have a cooldown. Admin recovery always calls the live API, even when the student demo
+uses mock mode. Passwords cannot be retrieved from database hashes. Never print or commit
+SMTP credentials, codes, or `.env`.
+
+If a reset email still contains a link, restart the running Flask process after pulling the
+OTP implementation. A Flask process started before the code change keeps serving the old
+handler. The current email contains a branded six-digit code, not a reset link.
+
 ## Tests and database safety
 
 ```bash
@@ -132,14 +146,19 @@ imports are completed, then poll their `/api/v1/jobs/{id}` status URL.
 
 All application datetimes are normalized to UTC before storage in MySQL `DATETIME(6)` and
 returned with `+00:00`. Monetary values use `NUMERIC`/`DECIMAL` and Python `Decimal`; APIs expose
-two-decimal strings. In tests, password reset tokens appear in response metadata; production
+two-decimal strings. In tests, password reset codes appear in response metadata; production
 never exposes them.
 
 ### Gmail email delivery
 
-Account verification uses a six-digit code sent after registration. Password recovery sends a
-tokenized link back to the frontend. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, `SMTP_FROM`,
-and `FRONTEND_BASE_URL`; production startup rejects missing mail credentials. Use a dedicated
+Account verification and password recovery each send a six-digit, single-use code in branded
+HTML and plain-text email. `POST /api/v1/auth/password/forgot` accepts an email and gives the
+same response for known and unknown accounts. The reset screen sends `email`, `code`, and
+`password` to `POST /api/v1/auth/password/reset`. Codes expire after 10 minutes by default,
+have five attempts, and are subject to a 30-second resend cooldown and endpoint rate limits.
+Successful reset revokes existing sessions. Legacy tokenized resets remain accepted for
+already-issued tokens. Configure `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM`;
+production startup rejects missing mail credentials. Use a dedicated
 Gmail or Google Workspace account with 2-Step Verification and a Gmail app password. Do not put
 the normal Google account password in the environment. The default connection is
 `smtp.gmail.com:465` over TLS.
@@ -148,6 +167,9 @@ Authenticated but unverified students can call `POST /api/v1/auth/email/resend` 
 `POST /api/v1/auth/email/verify`. Other protected student endpoints return
 `email_verification_required` until verification succeeds. Existing accounts are marked verified
 when the verification migration is applied.
+
+Run `flask --app wsgi:app db upgrade` to add the MySQL reset-attempt column. The dashboard
+has accessible breadcrumbs and a persistent light/dark switch; neither changes financial data.
 
 ## Budgets, dashboard, tips, reports, and exports (Phase 4)
 
@@ -175,7 +197,33 @@ with at most `REPORT_SYNC_TRANSACTION_LIMIT` transactions (default 500) return t
 directly. Larger exports return a `202` database job. Run
 `flask --app wsgi:app process-report-exports` manually or on a scheduler, poll
 `GET /api/v1/jobs/{id}`, then follow its `download_url`. Export contents are user-scoped.
+PDF and PNG exports use the same ledger data and a shared Campus Coin design: a dark
+header, income/expense/balance cards, category bars, recent activity, and readable
+footers. PDF category sections paginate; PNG height expands with the report content.
 `GET /api/v1/admin/usage` returns aggregate counts only.
+It also returns `most_used_categories` (top five by non-deleted transaction count). Administrators
+manage announcements and tip templates with `GET/POST /api/v1/admin/content` and
+`PATCH/DELETE /api/v1/admin/content/{id}`. Announcements appear as student notifications;
+active templates appear in saving tips and respect each student's pin/bookmark/dismiss state.
+Run `flask --app wsgi:app db upgrade` to create the `system_content` table before using them.
+See the [OpenAPI specification](openapi.yaml) and the root [README](../README.md) for
+installation and the AI-use acknowledgement.
+Start Flask, then open [Swagger UI directly](http://127.0.0.1:5000/api/docs) or
+[through Vite](http://localhost:5173/api/docs) to browse the endpoints. On macOS,
+`localhost:5000` may be answered by AirPlay rather than Flask.
+The raw specification is served at `/api/openapi.yaml`. Swagger UI loads its browser assets from
+a pinned CDN release, so the docs page needs internet access. Sign in through the Swagger admin
+login operation (or the app) before trying protected routes; the docs page obtains a CSRF token
+automatically for mutations. Do not expose evaluation credentials in the specification.
+
+## Category suggestions
+
+Income and expense forms suggest existing categories while the student types. Suggestions
+use category names, related words, and account-scoped correction memory. They are advisory:
+the student confirms or changes the category before saving. No description is sent to an
+AI provider. The existing `/api/v1/categories/suggest`, `/suggest/batch`, and
+`/suggest/feedback` contracts remain available for clients using deterministic rules.
+Legacy AI-related database columns remain for migration compatibility but are inactive.
 
 ## Backup and restore
 

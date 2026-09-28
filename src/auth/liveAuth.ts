@@ -53,6 +53,19 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return user;
 }
 
+export async function adminLogin(email: string, password: string): Promise<AuthUser> {
+  await api.request<AuthSummary>("/admin/login", {
+    method: "POST", body: { email, password }, authenticated: false,
+  });
+  clearLegacyUserData();
+  sessionStorage.removeItem(LOGOUT_PENDING_KEY);
+  api.authCookiesChanged();
+  const user = await fetchCurrentUser();
+  if (user.role !== "admin") throw new Error("Administrator access required");
+  setCurrentUser(user);
+  return user;
+}
+
 export async function register(name: string, email: string, password: string): Promise<AuthUser & { verification_sent: boolean }> {
   const response = await api.request<AuthSummary & { verification_sent: boolean }>("/auth/register", {
     method: "POST", body: { name, email, password }, authenticated: false,
@@ -81,11 +94,17 @@ export async function requestPasswordReset(email: string): Promise<void> {
   });
 }
 
-export async function resetPassword(token: string, password: string): Promise<void> {
+export async function resetPassword(email: string, code: string, password: string): Promise<void> {
   await api.request("/auth/password/reset", {
-    method: "POST", body: { token, password }, authenticated: false,
+    method: "POST", body: { email, code, password }, authenticated: false,
   });
   setCurrentUser(null);
+}
+
+export async function verifyPasswordResetCode(email: string, code: string): Promise<void> {
+  await api.request("/auth/password/verify-code", {
+    method: "POST", body: { email, code }, authenticated: false,
+  });
 }
 
 export async function resendEmailCode(): Promise<void> {
@@ -106,6 +125,7 @@ export async function updateLiveProfile(changes: Partial<{
   savings_goal: string;
   currency: string;
   timezone: string;
+  ai_consent: boolean;
   income_source_category_ids: string[];
   spending_category_ids: string[];
   onboarding_completed: boolean;

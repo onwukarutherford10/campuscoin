@@ -42,7 +42,7 @@ function StoryFloaters() {
 
       <Floater className="right-[4%] top-[22%]" depth={-150} slow>
         <div className={card}>
-          <span className="text-[11px] text-white/55">Saved this month</span>
+          <span className="text-[11px]  text-white/55">Saved this month</span>
           <p className="font-display mt-1 text-xl font-bold text-white">₦15,000</p>
           <span className="mt-1.5 flex w-fit items-center gap-1 rounded-full bg-mint/15 px-2 py-0.5 text-[10px] font-bold text-mint">
             <TrendingUp size={10} />

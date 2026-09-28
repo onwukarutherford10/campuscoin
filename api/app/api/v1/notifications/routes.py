@@ -6,6 +6,7 @@ from app.api.responses import success
 from app.extensions import db
 from app.repositories.planning import PlanningRepository
 from app.services.planning import PlanningService
+from app.services.system_content import SystemContentService
 from app.services.transactions import LedgerError
 from app.utils.security import auth_required
 from app.utils.time import utcnow
@@ -16,6 +17,7 @@ notifications = Blueprint("notifications", __name__)
 @notifications.get("")
 @auth_required()
 def list_notifications():
+    SystemContentService().sync_announcements(g.current_user)
     return success(
         [
             PlanningService.serialize_notification(n)

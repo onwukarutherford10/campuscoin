@@ -48,6 +48,14 @@ class PlanningRepository:
             .order_by(Transaction.occurred_at.desc(), Transaction.id)
         ).all()
 
+    def recent_transactions(self, owner_id: uuid.UUID, limit: int = 10):
+        return db.session.scalars(
+            select(Transaction)
+            .where(Transaction.owner_id == owner_id, Transaction.deleted_at.is_(None))
+            .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
+            .limit(limit)
+        ).all()
+
     def category(self, category_id: uuid.UUID):
         return db.session.get(Category, category_id)
 

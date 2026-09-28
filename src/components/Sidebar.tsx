@@ -43,9 +43,9 @@ function NavItems({ collapsed, onNavigate }: NavItemsProps) {
           onClick={onNavigate}
           title={collapsed ? label : undefined}
           className={({ isActive }) =>
-            `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
+            `sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition ${
               isActive
-                ? "bg-brand-soft font-medium text-brand-dark"
+                ? "sidebar-active bg-brand-soft font-medium text-brand-dark"
                 : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
             } ${collapsed ? "justify-center" : ""}`
           }
@@ -71,7 +71,7 @@ function SidebarFooter({ collapsed, onLogout, onNavigate }: SidebarFooterProps) 
         to="/settings"
         onClick={onNavigate}
         title={collapsed ? "Profile" : undefined}
-        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 ${
+        className={`sidebar-link flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 ${
           collapsed ? "justify-center" : ""
         }`}
       >
@@ -82,7 +82,7 @@ function SidebarFooter({ collapsed, onLogout, onNavigate }: SidebarFooterProps) 
         type="button"
         onClick={onLogout}
         title={collapsed ? "Log out" : undefined}
-        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 ${
+        className={`sidebar-link flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 ${
           collapsed ? "justify-center" : ""
         }`}
       >

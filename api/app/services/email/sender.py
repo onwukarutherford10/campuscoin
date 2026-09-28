@@ -10,10 +10,10 @@ class EmailDeliveryError(Exception):
     pass
 
 
-def send_email(to: str, subject: str, body: str) -> None:
+def send_email(to: str, subject: str, body: str, *, html: str | None = None) -> None:
     if current_app.testing:
         current_app.extensions.setdefault("mail_outbox", []).append(
-            {"to": to, "subject": subject, "body": body}
+            {"to": to, "subject": subject, "body": body, "html": html}
         )
         return
 
@@ -28,6 +28,8 @@ def send_email(to: str, subject: str, body: str) -> None:
     message["To"] = to
     message["Subject"] = subject
     message.set_content(body)
+    if html:
+        message.add_alternative(html, subtype="html")
     try:
         with smtplib.SMTP_SSL(config["SMTP_HOST"], config["SMTP_PORT"], timeout=10) as smtp:
             smtp.login(username, password)

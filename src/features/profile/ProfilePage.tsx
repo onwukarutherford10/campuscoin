@@ -14,9 +14,12 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import { Card, ErrorState } from "../../components/StateViews";
 import { ListSkeleton } from "../../components/Skeletons";
 import { toast } from "../../services/toast";
+import { ThemeSettings } from "./ThemeSettings";
 
 interface LayoutContext {
   openMenu: () => void;
+  darkMode: boolean;
+  toggleTheme: () => void;
 }
 
 const inputClass =
@@ -44,7 +47,7 @@ function FieldError({ message }: { message?: string }) {
 
 /** Profile screen: photo, editable details and account closure (§ user story). */
 export function ProfilePage() {
-  const { openMenu } = useOutletContext<LayoutContext>();
+  const { openMenu, darkMode, toggleTheme } = useOutletContext<LayoutContext>();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -319,6 +322,7 @@ export function ProfilePage() {
           </Card>
 
           {/* Danger zone */}
+          <ThemeSettings darkMode={darkMode} onToggle={toggleTheme} />
           <Card title="Close account" className="lg:col-span-3 border border-red-100">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>

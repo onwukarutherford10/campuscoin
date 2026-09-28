@@ -7,9 +7,10 @@ from app.schemas.auth import (
     RegistrationSchema,
     ResetPasswordSchema,
     VerifyEmailSchema,
+    VerifyResetCodeSchema,
 )
 from app.services.auth import AuthService, TokenPair
-from app.services.email.sender import EmailDeliveryError, send_email
+from app.services.email.sender import EmailDeliveryError
 from app.services.email.verification import send_verification_code, verify_email_code
 from app.services.rate_limit import check_rate_limit
 from app.utils.security import auth_required
@@ -133,21 +134,14 @@ def logout():
 def forgot_password():
     payload = ForgotPasswordSchema().load(request.get_json(silent=True) or {})
     check_rate_limit("forgot_password", f"{request.remote_addr}:{payload['email'].lower()}")
-    token = AuthService().create_password_reset(payload["email"])
-    if token:
-        link = f"{current_app.config['FRONTEND_BASE_URL'].rstrip('/')}/resetpassword?token={token}"
-        try:
-            send_email(
-                payload["email"],
-                "Reset your CampusCoin password",
-                f"Use this link to reset your password: {link}\n"
-                "If you did not request this, ignore this message.",
-            )
-        except EmailDeliveryError:
-            current_app.logger.warning("Password reset email could not be delivered")
-    meta = {"reset_token": token} if current_app.testing and token else None
+    try:
+        code = AuthService().send_password_reset_code(payload["email"])
+    except EmailDeliveryError:
+        current_app.logger.warning("Password reset email could not be delivered")
+        code = None
+    meta = {"reset_code": code} if current_app.testing and code else None
     return success(
-        {"message": "If the account exists, password reset instructions have been issued."},
+        {"message": "If the account exists, a password reset code has been sent."},
         meta=meta,
     )
 
@@ -156,8 +150,23 @@ def forgot_password():
 def reset_password():
     payload = ResetPasswordSchema().load(request.get_json(silent=True) or {})
     check_rate_limit("reset_password", request.remote_addr or "unknown")
-    AuthService().reset_password(**payload)
+    if payload.get("token"):
+        AuthService().reset_password(payload["token"], payload["password"])
+    elif payload.get("email") and payload.get("code"):
+        AuthService().reset_password_with_code(
+            payload["email"], payload["code"], payload["password"]
+        )
+    else:
+        return failure("validation_error", "Email and code are required", status=400)
     return success({"password_reset": True})
+
+
+@auth.post("/password/verify-code")
+def verify_reset_code():
+    payload = VerifyResetCodeSchema().load(request.get_json(silent=True) or {})
+    check_rate_limit("verify_reset_code", request.remote_addr or "unknown")
+    AuthService().verify_password_reset_code(payload["email"], payload["code"])
+    return success({"verified": True})
 
 
 @auth.post("/email/resend")

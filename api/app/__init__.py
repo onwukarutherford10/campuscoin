@@ -4,6 +4,7 @@ from flask import Flask
 from sqlalchemy import event
 
 from app.api import api_v1
+from app.api.docs import docs
 from app.api.errors import register_error_handlers
 from app.api.health import health
 from app.config import CONFIGS
@@ -36,6 +37,7 @@ def create_app(config_name: str | None = None, overrides: dict | None = None) ->
     )
 
     app.register_blueprint(health)
+    app.register_blueprint(docs)
     app.register_blueprint(api_v1, url_prefix="/api/v1")
     init_api_security(app, api_v1)
     register_error_handlers(app)

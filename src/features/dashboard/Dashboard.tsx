@@ -15,7 +15,6 @@ import TransactionFormModal from "../transactions/TransactionFormModal";
 import { Card, ErrorState } from "../../components/StateViews";
 import { toast } from "../../services/toast";
 import { ListSkeleton, SummarySkeleton } from "../../components/Skeletons";
-import NotificationsPanel from "./NotificationsPanel";
 import { dismissNotification, markNotificationRead } from "../../services/dashboardApi";
 
 interface LayoutContext {
@@ -52,7 +51,9 @@ export function Dashboard() {
     <>
       <DashboardHeader
         onOpenMenu={openMenu}
-        unreadCount={data?.alerts.filter((alert) => !alert.readAt).length ?? 0}
+        alerts={data?.alerts ?? []}
+        onRead={(id) => updateAlert(markNotificationRead, id)}
+        onDismiss={(id) => updateAlert(dismissNotification, id)}
       />
 
       {loading && !data && (
@@ -83,14 +84,6 @@ export function Dashboard() {
             onAddIncome={() => setQuickAddType("income")}
             onAddExpense={() => setQuickAddType("expense")}
           />
-
-          {data.alerts.length > 0 && (
-            <NotificationsPanel
-              alerts={data.alerts}
-              onRead={(id) => updateAlert(markNotificationRead, id)}
-              onDismiss={(id) => updateAlert(dismissNotification, id)}
-            />
-          )}
 
           {/* Spending → budgets */}
           <div className="grid gap-5 lg:grid-cols-3">

@@ -46,6 +46,12 @@ export function SpendingOverview({ data, onAddTransaction }: SpendingOverviewPro
           enableArcLinkLabels={false}
           arcLabelsSkipAngle={12}
           valueFormat={(value) => formatNaira(value)}
+          tooltip={({ datum }) => (
+            <div className="flex items-center gap-2 rounded-xl border border-[#34363a] bg-[#1b1c1f] px-3 py-2 text-sm text-[#f4f4f5] shadow-xl">
+              <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: datum.color }} />
+              <span>{datum.label}: <strong>{formatNaira(datum.value)}</strong></span>
+            </div>
+          )}
           legends={[]}
         />
       </div>

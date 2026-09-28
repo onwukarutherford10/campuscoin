@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import click
 from flask import Flask
 from flask.cli import with_appcontext
@@ -71,6 +73,34 @@ def seed_admin(email: str, password: str, name: str) -> None:
     click.echo(message)
 
 
+@click.command("seed-evaluation")
+@click.option("--email", envvar="EVAL_STUDENT_EMAIL", required=True)
+@click.option("--password", envvar="EVAL_STUDENT_PASSWORD", required=True, hide_input=True)
+@with_appcontext
+def seed_evaluation(email: str, password: str) -> None:
+    """Create an idempotent, email-verified student for private evaluation."""
+    if len(password) < 12:
+        raise click.ClickException("Evaluation password must be at least 12 characters")
+    normalized = email.strip().lower()
+    user = db.session.scalar(select(User).where(User.email == normalized))
+    if user is None:
+        user = User(
+            email=normalized,
+            password_hash=generate_password_hash(password),
+            name="Evaluation Student",
+            role=UserRole.STUDENT,
+            email_verified_at=datetime.now(UTC),
+        )
+        db.session.add(user)
+        db.session.commit()
+        click.echo("Evaluation student created. Password was not printed.")
+    elif user.role != UserRole.STUDENT:
+        raise click.ClickException("Email belongs to a non-student account")
+    else:
+        click.echo("Evaluation student already exists; password unchanged.")
+
+
 def register_commands(app: Flask) -> None:
     app.cli.add_command(seed_categories)
     app.cli.add_command(seed_admin)
+    app.cli.add_command(seed_evaluation)

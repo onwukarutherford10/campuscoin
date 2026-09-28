@@ -40,6 +40,11 @@ class BaseConfig:
     ACCESS_TOKEN_TTL = timedelta(minutes=int(os.getenv("ACCESS_TOKEN_MINUTES", "15")))
     REFRESH_TOKEN_TTL = timedelta(days=int(os.getenv("REFRESH_TOKEN_DAYS", "30")))
     PASSWORD_RESET_TTL = timedelta(minutes=int(os.getenv("PASSWORD_RESET_MINUTES", "30")))
+    PASSWORD_RESET_CODE_TTL = timedelta(minutes=int(os.getenv("PASSWORD_RESET_CODE_MINUTES", "10")))
+    PASSWORD_RESET_CODE_MAX_ATTEMPTS = int(os.getenv("PASSWORD_RESET_CODE_MAX_ATTEMPTS", "5"))
+    PASSWORD_RESET_RESEND_COOLDOWN = timedelta(
+        seconds=int(os.getenv("PASSWORD_RESET_RESEND_SECONDS", "30"))
+    )
     EMAIL_VERIFICATION_REQUIRED = True
     EMAIL_CODE_TTL = timedelta(minutes=int(os.getenv("EMAIL_CODE_MINUTES", "10")))
     EMAIL_RESEND_COOLDOWN = timedelta(seconds=int(os.getenv("EMAIL_RESEND_SECONDS", "30")))
