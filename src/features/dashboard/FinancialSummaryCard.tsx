@@ -11,7 +11,7 @@ interface FinancialSummaryCardProps {
 /** Dark financial summary panel: balance first, income and expense next. */
 export function FinancialSummaryCard({ summary, onAddIncome, onAddExpense }: FinancialSummaryCardProps) {
   return (
-    <section className="rounded-2xl bg-ink p-6 text-white" aria-label="Financial summary">
+    <section className="financial-summary rounded-2xl bg-ink p-6 text-white" aria-label="Financial summary">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[13px] text-ink-muted">Net balance this month</p>

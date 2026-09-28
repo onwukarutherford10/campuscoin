@@ -57,6 +57,35 @@ def test_budgets_dashboard_alerts_tips_and_tenant_isolation(app):
     )
 
 
+def test_dashboard_recent_activity_matches_transaction_list_across_months(app):
+    client = app.test_client()
+    register(client, "recent-dashboard@example.com")
+    category = make_category(client)
+    now = datetime.now(UTC)
+    older = make_transaction(
+        client,
+        category,
+        description="Older transaction",
+        occurred_at=(now - timedelta(days=65)).isoformat(),
+    )
+    newer = make_transaction(
+        client,
+        category,
+        description="Latest transaction",
+        occurred_at=(now - timedelta(hours=1)).isoformat(),
+    )
+    assert older.status_code == newer.status_code == 201
+    dashboard = client.get("/api/v1/dashboard").get_json()["data"]
+    listing = client.get("/api/v1/transactions?per_page=10").get_json()["data"]
+    assert [item["id"] for item in dashboard["recent_activity"][:2]] == [
+        item["id"] for item in listing[:2]
+    ]
+    assert [item["description"] for item in dashboard["recent_activity"][:2]] == [
+        "Latest transaction",
+        "Older transaction",
+    ]
+
+
 def test_reports_and_exports_match_ledger(app):
     client = app.test_client()
     register(client, "phase4-report@example.com")

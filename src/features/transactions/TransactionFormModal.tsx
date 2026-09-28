@@ -117,17 +117,13 @@ export function TransactionFormModal({
     setErrors({});
   }
 
-  /**
-   * Category suggestion runs while the student types (not on blur):
-   * high-confidence repeats of a corrected description auto-select,
-   * everything else appears as an advisory suggestion chip.
-   */
+  /** Local word matching runs in both modes; no description is sent externally. */
   function handleDescriptionChange(value: string) {
     setDescription(value);
     setSuggestion(null);
     setAutoFilled(false);
     const token = ++suggestionToken.current;
-    suggestCategory(value, type).then((result) => {
+    suggestCategory(value, type, categoriesRef.current).then((result) => {
       if (token !== suggestionToken.current) return;
       if (!result) return;
       const wanted = CATEGORY_ALIASES[normalizedLabel(result.category)] ?? normalizedLabel(result.category);
@@ -243,11 +239,12 @@ export function TransactionFormModal({
           />
           <FieldError message={errors.description} />
 
+
           {suggestion && suggestion !== selected && (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-brand-soft/60 px-3 py-2">
               <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-brand-dark">
                 <Sparkles size={13} className="shrink-0" />
-                <span className="truncate">On-device suggestion: {suggestion}</span>
+                <span className="truncate">Suggested from description: {suggestion}</span>
               </span>
               <span className="flex shrink-0 items-center gap-1">
                 <button
@@ -255,6 +252,7 @@ export function TransactionFormModal({
                   onClick={() => {
                     setCategory(suggestion);
                     setCategoryId(categories.find((entry) => entry.type === type && entry.name === suggestion)?.id ?? "");
+                    setCategoryTouched(true);
                     setSuggestion(null);
                   }}
                   className="rounded-lg bg-white px-2 py-1 text-[12px] font-medium text-brand-dark ring-1 ring-brand/30 transition hover:bg-white/80"

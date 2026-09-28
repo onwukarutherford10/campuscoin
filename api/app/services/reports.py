@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import uuid
 from datetime import datetime
@@ -12,48 +11,11 @@ from sqlalchemy import select
 from app.api.responses import success
 from app.extensions import db
 from app.models import Job, JobStatus, JobType, ReportExport, User
+from app.services.exports.renderer import render_report
 from app.services.jobs.service import JobService
 from app.services.planning import PlanningService
 from app.services.transactions import LedgerError
 from app.utils.time import utcnow
-
-
-def render_report(report, format):
-    lines = [
-        "CampusCoin report",
-        f"Period: {report['from']} to {report['to']}",
-        f"Currency: {report['currency']}",
-        f"Income: {report['income']}",
-        f"Expenses: {report['expenses']}",
-        f"Balance: {report['balance']}",
-        f"Transactions: {report['transaction_count']}",
-        "Categories:",
-        *[f"{item['type']} / {item['name']}: {item['amount']}" for item in report["categories"]],
-    ]
-    output = io.BytesIO()
-    if format == "pdf":
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas
-
-        page = canvas.Canvas(output, pagesize=A4)
-        y = A4[1] - 48
-        for line in lines:
-            if y < 48:
-                page.showPage()
-                y = A4[1] - 48
-            page.drawString(36, y, line[:105])
-            y -= 18
-        page.save()
-    else:
-        from PIL import Image, ImageDraw
-
-        width, height = 1100, max(300, 30 * (len(lines) + 2))
-        image = Image.new("RGB", (width, height), "white")
-        draw = ImageDraw.Draw(image)
-        for index, line in enumerate(lines):
-            draw.text((24, 24 + index * 30), line, fill="black")
-        image.save(output, format="PNG")
-    return output.getvalue()
 
 
 class ReportService:

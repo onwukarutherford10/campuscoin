@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -14,6 +15,8 @@ from app.models import AuthSession, PasswordResetToken, User, UserRole
 from app.repositories.auth import AuthRepository
 from app.repositories.users import UserRepository
 from app.services.audit import record_audit
+from app.services.email.sender import send_email
+from app.services.email.templates import otp_message
 from app.utils.time import as_utc, utcnow
 
 
@@ -33,6 +36,11 @@ class TokenPair:
 
 def _digest(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _reset_code_digest(user_id: uuid.UUID, code: str) -> str:
+    key = current_app.config["SECRET_KEY"].encode()
+    return hmac.new(key, f"password-reset:{user_id}:{code}".encode(), hashlib.sha256).hexdigest()
 
 
 class AuthService:
@@ -128,6 +136,65 @@ class AuthService:
         record_audit("auth.password_reset_requested", actor_id=actor_id, target_user_id=user.id)
         db.session.commit()
         return token
+
+    def send_password_reset_code(self, email: str) -> str | None:
+        user = self.users.by_email(email.strip().lower())
+        if user is None or not user.is_active:
+            return None
+        now = utcnow()
+        previous = self.auth.latest_reset_for_user(user.id)
+        if (
+            previous
+            and as_utc(previous.created_at) + current_app.config["PASSWORD_RESET_RESEND_COOLDOWN"]
+            > now
+        ):
+            return None
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        reset = PasswordResetToken(
+            user_id=user.id,
+            token_hash=_reset_code_digest(user.id, code),
+            expires_at=now + current_app.config["PASSWORD_RESET_CODE_TTL"],
+            attempts=0,
+        )
+        db.session.add(reset)
+        db.session.flush()
+        minutes = int(current_app.config["PASSWORD_RESET_CODE_TTL"].total_seconds() // 60)
+        subject, plain, html = otp_message("reset", code, minutes)
+        try:
+            send_email(user.email, subject, plain, html=html)
+        except Exception:
+            db.session.rollback()
+            raise
+        if previous:
+            previous.used_at = now
+        record_audit("auth.password_reset_requested", target_user_id=user.id)
+        db.session.commit()
+        return code
+
+    def verify_password_reset_code(self, email: str, code: str) -> User:
+        user = self.users.by_email(email.strip().lower())
+        if user is None or not user.is_active:
+            raise AuthError("invalid_reset_code", "Code is invalid or expired", 400)
+        reset = self.auth.latest_reset_for_user(user.id)
+        now = utcnow()
+        if reset is None or as_utc(reset.expires_at) <= now:
+            raise AuthError("invalid_reset_code", "Code is invalid or expired", 400)
+        if reset.attempts >= current_app.config["PASSWORD_RESET_CODE_MAX_ATTEMPTS"]:
+            raise AuthError("reset_code_locked", "Request a new code", 429)
+        if not secrets.compare_digest(reset.token_hash, _reset_code_digest(user.id, code)):
+            reset.attempts += 1
+            db.session.commit()
+            raise AuthError("invalid_reset_code", "Code is invalid or expired", 400)
+        return user
+
+    def reset_password_with_code(self, email: str, code: str, password: str) -> User:
+        user = self.verify_password_reset_code(email, code)
+        user.password_hash = generate_password_hash(password)
+        self.auth.use_user_resets(user.id)
+        self.auth.revoke_user_sessions(user.id)
+        record_audit("auth.password_reset", actor_id=user.id, target_user_id=user.id)
+        db.session.commit()
+        return user
 
     def reset_password(self, token: str, password: str) -> User:
         reset = self.auth.reset_by_hash(_digest(token))

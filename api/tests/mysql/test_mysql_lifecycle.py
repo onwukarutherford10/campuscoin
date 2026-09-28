@@ -37,6 +37,7 @@ def mysql_app():
             connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
         upgrade()
         assert "transactions" in inspect(db.engine).get_table_names()
+        assert "system_content" in inspect(db.engine).get_table_names()
         downgrade(revision="base")
         upgrade()
         yield app

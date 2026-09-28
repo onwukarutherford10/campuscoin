@@ -27,6 +27,7 @@ export function RequireAuth({ children, allowUnverified = false }: RequireAuthPr
     );
   }
   if (!auth.user) return <Navigate to="/login" replace />;
+  if (auth.user.role === "admin") return <Navigate to="/admin" replace />;
   if (!allowUnverified && !auth.user.email_verified) return <Navigate to="/otp" replace />;
   return <>{children}</>;
 }

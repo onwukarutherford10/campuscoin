@@ -1,9 +1,11 @@
+from app.models.ai import AISuggestionUsage, CategoryCorrection, CategorySuggestionCache
 from app.models.auth import AuthSession, EmailVerificationCode, PasswordResetToken
 from app.models.category import Category, CategoryType
 from app.models.job import Job, JobStatus, JobType
 from app.models.planning import Budget, Notification, ReportExport, TipState
 from app.models.recurrence import RecurrenceFrequency, RecurringRule
 from app.models.security import AuditLog, RateLimitRecord
+from app.models.system_content import SystemContent
 from app.models.transaction import (
     CSVImport,
     RevisionAction,
@@ -16,6 +18,9 @@ from app.models.user import OnboardingCategoryPreference, OnboardingPreferenceKi
 
 __all__ = [
     "AuditLog",
+    "AISuggestionUsage",
+    "CategoryCorrection",
+    "CategorySuggestionCache",
     "AuthSession",
     "EmailVerificationCode",
     "Category",
@@ -27,6 +32,7 @@ __all__ = [
     "Notification",
     "ReportExport",
     "TipState",
+    "SystemContent",
     "PasswordResetToken",
     "RateLimitRecord",
     "RecurrenceFrequency",
