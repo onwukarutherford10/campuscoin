@@ -43,6 +43,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin, db.Model):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    avatar_public_id: Mapped[str | None] = mapped_column(String(255))
+    avatar_url: Mapped[str | None] = mapped_column(String(500))
 
     sessions = relationship("AuthSession", back_populates="user", cascade="all, delete-orphan")
     categories = relationship("Category", back_populates="owner")

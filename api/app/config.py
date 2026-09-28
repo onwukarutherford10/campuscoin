@@ -52,6 +52,9 @@ class BaseConfig:
     BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
     EMAIL_FROM_ADDRESS = os.getenv("EMAIL_FROM_ADDRESS", "")
     EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "Campus Coin")
+    CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+    CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
     FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
     ACCESS_COOKIE_NAME = "campuscoin_access"
     REFRESH_COOKIE_NAME = "campuscoin_refresh"
@@ -117,6 +120,11 @@ class ProductionConfig(BaseConfig):
             raise RuntimeError("Production requires MySQL")
         if not config["BREVO_API_KEY"] or not config["EMAIL_FROM_ADDRESS"]:
             raise RuntimeError("Production Brevo email credentials must be configured")
+        if not all(
+            config[key]
+            for key in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET")
+        ):
+            raise RuntimeError("Production Cloudinary credentials must be configured")
 
 
 CONFIGS = {

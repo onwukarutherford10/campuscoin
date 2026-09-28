@@ -2,6 +2,7 @@ import re
 import uuid
 from datetime import timedelta
 
+from sqlalchemy import select
 from werkzeug.security import generate_password_hash
 
 from app.extensions import db
@@ -93,6 +94,47 @@ def test_registration_profile_and_logout_flow(client, app):
     assert client.get("/api/v1/users/me").status_code == 401
     with app.app_context():
         assert db.session.query(AuditLog).count() >= 3
+
+
+def test_avatar_upload_metadata_and_account_deletion(client, app, monkeypatch):
+    app.config.update(
+        CLOUDINARY_CLOUD_NAME="campuscoin",
+        CLOUDINARY_API_KEY="cloudinary-key",
+        CLOUDINARY_API_SECRET="cloudinary-secret",
+    )
+    monkeypatch.setattr("app.services.users.destroy_image", lambda _public_id: None)
+    register(client, "avatar@example.com")
+    token = client.get_cookie("campuscoin_csrf").value
+
+    signature = client.post(
+        "/api/v1/users/me/avatar/upload-signature",
+        headers={"X-CSRF-Token": token},
+    )
+    assert signature.status_code == 200
+    upload = signature.get_json()["data"]
+    assert upload["upload_url"].endswith("/campuscoin/image/upload")
+    assert upload["public_id"].startswith("campuscoin/avatars/")
+    assert upload["signature"]
+
+    saved = client.put(
+        "/api/v1/users/me/avatar",
+        json={"public_id": upload["public_id"]},
+        headers={"X-CSRF-Token": token},
+    )
+    assert saved.status_code == 200
+    assert saved.get_json()["data"]["avatar_url"].startswith(
+        "https://res.cloudinary.com/campuscoin/image/upload/"
+    )
+
+    removed = client.delete("/api/v1/users/me/avatar", headers={"X-CSRF-Token": token})
+    assert removed.status_code == 200
+    assert removed.get_json()["data"]["avatar_url"] is None
+
+    deleted = client.delete("/api/v1/users/me", headers={"X-CSRF-Token": token})
+    assert deleted.status_code == 200
+    assert client.get("/api/v1/users/me").status_code == 401
+    with app.app_context():
+        assert db.session.scalar(select(User).where(User.email == "avatar@example.com")) is None
 
 
 def test_onboarding_is_resumable_and_persists_across_clients(client, app):

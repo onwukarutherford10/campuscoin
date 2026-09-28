@@ -166,6 +166,16 @@ Authenticated but unverified students can call `POST /api/v1/auth/email/resend` 
 `email_verification_required` until verification succeeds. Existing accounts are marked verified
 when the verification migration is applied.
 
+### Profile photos and account deletion
+
+Profile photo uploads use short-lived signatures from
+`POST /api/v1/users/me/avatar/upload-signature`; the browser uploads the image directly to
+Cloudinary, then attaches the returned public ID with `PUT /api/v1/users/me/avatar`. Configure
+`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` on the API host. Never
+expose the API secret in frontend variables. `DELETE /api/v1/users/me/avatar` removes the current
+photo, while `DELETE /api/v1/users/me` permanently deletes the signed-in student account and its
+owned financial data.
+
 Run `flask --app wsgi:app db upgrade` to add the MySQL reset-attempt column. The dashboard
 has accessible breadcrumbs and a persistent light/dark switch; neither changes financial data.
 

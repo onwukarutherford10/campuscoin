@@ -1,16 +1,36 @@
+import re
 from decimal import Decimal
 
+from flask import current_app
 from sqlalchemy import delete, select
 
 from app.extensions import db
 from app.models import (
+    AISuggestionUsage,
+    AuthSession,
+    Budget,
     Category,
+    CategoryCorrection,
+    CategorySuggestionCache,
     CategoryType,
+    CSVImport,
+    EmailVerificationCode,
+    Job,
+    Notification,
     OnboardingCategoryPreference,
     OnboardingPreferenceKind,
+    PasswordResetToken,
+    RecurringRule,
+    ReportExport,
+    TipState,
+    Transaction,
+    TransactionActivity,
+    TransactionRevision,
     User,
+    UserRole,
 )
 from app.services.audit import record_audit
+from app.services.cloudinary import CloudinaryError, avatar_url, destroy_image
 from app.utils.time import utcnow
 
 
@@ -47,6 +67,7 @@ def serialize_user(user: User, *, include_email: bool = True) -> dict:
         "is_active": user.is_active,
         "email_verified": user.email_verified_at is not None,
         "onboarding_completed": user.onboarding_completed_at is not None,
+        "avatar_url": user.avatar_url,
         "income_source_category_ids": _preference_ids(user, OnboardingPreferenceKind.INCOME_SOURCE),
         "spending_category_ids": _preference_ids(user, OnboardingPreferenceKind.SPENDING_AREA),
     }
@@ -85,6 +106,69 @@ def update_profile(user: User, changes: dict) -> User:
     record_audit("user.profile_updated", actor_id=user.id, target_user_id=user.id)
     db.session.commit()
     return user
+
+
+def attach_avatar(user: User, public_id: str) -> User:
+    pattern = rf"campuscoin/avatars/{re.escape(str(user.id))}/[0-9a-f]{{32}}"
+    if re.fullmatch(pattern, public_id) is None:
+        raise ProfileError("invalid_avatar", "Choose a profile photo uploaded for your account")
+    previous_id = user.avatar_public_id
+    user.avatar_public_id = public_id
+    user.avatar_url = avatar_url(public_id)
+    record_audit("user.avatar_updated", actor_id=user.id, target_user_id=user.id)
+    db.session.commit()
+    if previous_id and previous_id != public_id:
+        try:
+            destroy_image(previous_id)
+        except CloudinaryError:
+            current_app.logger.warning("Previous profile photo could not be removed")
+    return user
+
+
+def remove_avatar(user: User) -> User:
+    if user.avatar_public_id:
+        destroy_image(user.avatar_public_id)
+    user.avatar_public_id = None
+    user.avatar_url = None
+    record_audit("user.avatar_removed", actor_id=user.id, target_user_id=user.id)
+    db.session.commit()
+    return user
+
+
+def delete_account(user: User) -> None:
+    if user.role != UserRole.STUDENT:
+        raise ProfileError(
+            "account_deletion_forbidden", "Administrator accounts cannot be deleted here", 403
+        )
+    if user.avatar_public_id:
+        try:
+            destroy_image(user.avatar_public_id)
+        except CloudinaryError:
+            current_app.logger.warning("Profile photo cleanup failed during account deletion")
+    record_audit("user.account_deleted")
+    db.session.execute(delete(TransactionRevision).where(TransactionRevision.actor_id == user.id))
+    for model, owner_column in (
+        (TransactionActivity, TransactionActivity.user_id),
+        (CSVImport, CSVImport.owner_id),
+        (Transaction, Transaction.owner_id),
+        (RecurringRule, RecurringRule.owner_id),
+        (Budget, Budget.owner_id),
+        (OnboardingCategoryPreference, OnboardingCategoryPreference.user_id),
+        (CategoryCorrection, CategoryCorrection.owner_id),
+        (CategorySuggestionCache, CategorySuggestionCache.owner_id),
+        (AISuggestionUsage, AISuggestionUsage.owner_id),
+        (Notification, Notification.owner_id),
+        (TipState, TipState.owner_id),
+        (ReportExport, ReportExport.owner_id),
+        (Job, Job.owner_id),
+        (EmailVerificationCode, EmailVerificationCode.user_id),
+        (PasswordResetToken, PasswordResetToken.user_id),
+        (AuthSession, AuthSession.user_id),
+        (Category, Category.owner_id),
+    ):
+        db.session.execute(delete(model).where(owner_column == user.id))
+    db.session.execute(delete(User).where(User.id == user.id))
+    db.session.commit()
 
 
 def _replace_preferences(user: User, category_ids: list, kind: str, category_type: str) -> None:
