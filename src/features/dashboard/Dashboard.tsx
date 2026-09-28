@@ -15,6 +15,8 @@ import TransactionFormModal from "../transactions/TransactionFormModal";
 import { Card, ErrorState } from "../../components/StateViews";
 import { toast } from "../../services/toast";
 import { ListSkeleton, SummarySkeleton } from "../../components/Skeletons";
+import NotificationsPanel from "./NotificationsPanel";
+import { dismissNotification, markNotificationRead } from "../../services/dashboardApi";
 
 interface LayoutContext {
   openMenu: () => void;
@@ -37,9 +39,21 @@ export function Dashboard() {
     });
   }
 
+  async function updateAlert(action: (id: string) => Promise<unknown>, id: string) {
+    try {
+      await action(id);
+      reload();
+    } catch {
+      toast.error("We couldn't update that alert. Please try again.");
+    }
+  }
+
   return (
     <>
-      <DashboardHeader onOpenMenu={openMenu} />
+      <DashboardHeader
+        onOpenMenu={openMenu}
+        unreadCount={data?.alerts.filter((alert) => !alert.readAt).length ?? 0}
+      />
 
       {loading && !data && (
         <div className="space-y-5">
@@ -70,6 +84,14 @@ export function Dashboard() {
             onAddExpense={() => setQuickAddType("expense")}
           />
 
+          {data.alerts.length > 0 && (
+            <NotificationsPanel
+              alerts={data.alerts}
+              onRead={(id) => updateAlert(markNotificationRead, id)}
+              onDismiss={(id) => updateAlert(dismissNotification, id)}
+            />
+          )}
+
           {/* Spending → budgets */}
           <div className="grid gap-5 lg:grid-cols-3">
             <Card title="Spending overview" className="lg:col-span-2">
@@ -87,7 +109,11 @@ export function Dashboard() {
           <div className="grid gap-5 lg:grid-cols-3">
             <SavingTipCard tip={data.tip} />
 
-            <Card title="Reports" action={<span className="text-[13px] text-gray-400">6 months</span>} className="lg:col-span-2">
+            <Card
+              title="Reports"
+              action={<span className="text-[13px] text-gray-400">6 months</span>}
+              className={data.tip ? "lg:col-span-2" : "lg:col-span-3"}
+            >
               <ReportsCard trend={data.trend} />
             </Card>
           </div>

@@ -3,6 +3,19 @@
 import sqlalchemy as sa
 from alembic import op
 
+from app.models.utc_datetime import UTCDateTime
+
+
+def create_table(name, *columns):
+    op.create_table(
+        name,
+        *columns,
+        mysql_engine="InnoDB",
+        mysql_charset="utf8mb4",
+        mysql_collate="utf8mb4_unicode_ci",
+    )
+
+
 revision = "20260924_0001"
 down_revision = None
 branch_labels = None
@@ -10,7 +23,7 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table(
+    create_table(
         "jobs",
         sa.Column("job_type", sa.String(length=40), nullable=False),
         sa.Column("status", sa.String(length=20), nullable=False),
@@ -18,21 +31,21 @@ def upgrade():
         sa.Column("result", sa.JSON(), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("attempts", sa.Integer(), nullable=False),
-        sa.Column("available_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("available_at", UTCDateTime(), nullable=True),
+        sa.Column("started_at", UTCDateTime(), nullable=True),
+        sa.Column("finished_at", UTCDateTime(), nullable=True),
         sa.Column("idempotency_key", sa.String(length=255), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            UTCDateTime(),
+            server_default=sa.text("CURRENT_TIMESTAMP(6)"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            UTCDateTime(),
+            server_default=sa.text("CURRENT_TIMESTAMP(6)"),
             nullable=False,
         ),
         sa.Column("version", sa.Integer(), nullable=False),

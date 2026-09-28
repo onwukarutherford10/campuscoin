@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { clearSession } from "../auth/session";
+import { DATA_MODE } from "../services/api/config";
+import { logout } from "../auth/liveAuth";
 import Sidebar from "../components/Sidebar";
 
 /**
@@ -11,14 +13,18 @@ export function DashboardLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  function handleLogout() {
-    clearSession();
-    navigate("/login");
+  async function handleLogout() {
+    if (DATA_MODE === "live") {
+      try { await logout(); } catch { /* Identity is cleared locally by logout. */ }
+    } else {
+      clearSession();
+    }
+    navigate("/login", { replace: true });
   }
 
   return (
     <div className="flex min-h-screen bg-canvas">
-      <Sidebar isOpen={menuOpen} onClose={() => setMenuOpen(false)} onLogout={handleLogout} />
+      <Sidebar isOpen={menuOpen} onClose={() => setMenuOpen(false)} onLogout={() => void handleLogout()} />
 
       <div className="min-w-0 flex-1">
         <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">

@@ -1,17 +1,23 @@
 import { Fragment, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Sparkles, Upload, X } from "lucide-react";
+import { Download, Sparkles, Upload, X } from "lucide-react";
 import type { ImportRow, ServiceResult, TransactionType } from "../../types";
 import {
   CSV_COLUMNS,
   CSV_EXAMPLE,
+  confirmServerImport,
+  downloadImportErrors,
   importRows,
   parseCsv,
+  previewImportRows,
   suggestImportCategories,
   validateImportRow,
   type ImportOutcome,
+  type ServerImportPreview,
 } from "../../services/csvImport";
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from "../../services/categoryService";
 import { toast } from "../../services/toast";
+import { DATA_MODE } from "../../services/api/config";
+import { useCategories } from "../../hooks/useCategories";
 
 interface CsvImportModalProps {
   onClose: () => void;
@@ -32,7 +38,39 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
   const [parsing, setParsing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [serverPreview, setServerPreview] = useState<ServerImportPreview | null>(null);
+  const [filename, setFilename] = useState("campuscoin-import.csv");
+  const [includeDuplicates, setIncludeDuplicates] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { items: categories, loading: categoriesLoading, error: categoriesError } = useCategories();
+  const knownCategories = {
+    income: categories.filter((item) => item.type === "income").map((item) => item.name),
+    expense: categories.filter((item) => item.type === "expense").map((item) => item.name),
+  };
+
+  async function refreshServerPreview(nextRows: ImportRow[], nextFilename = filename) {
+    setParsing(true);
+    setSubmitError("");
+    try {
+      const preview = await previewImportRows(nextRows, nextFilename);
+      setServerPreview(preview);
+      return preview;
+    } catch (requestError) {
+      setServerPreview(null);
+      setSubmitError(requestError instanceof Error ? requestError.message : "We couldn't preview that import.");
+      return null;
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function downloadErrors(url: string) {
+    try {
+      await downloadImportErrors(url);
+    } catch (downloadError) {
+      setSubmitError(downloadError instanceof Error ? downloadError.message : "We couldn't download the error file.");
+    }
+  }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -58,8 +96,13 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
       }
       // Batch categorization: fill blanks with editable suggestions.
       const withSuggestions = await suggestImportCategories(parsed.rows);
-      setRows(withSuggestions);
+      const validated = withSuggestions.map((row) => validateImportRow(row, knownCategories));
+      setRows(validated);
+      setFilename(file.name);
       setStage("preview");
+      if (DATA_MODE === "live" && validated.every((row) => Object.keys(row.errors).length === 0)) {
+        await refreshServerPreview(validated, file.name);
+      }
     } catch {
       setFileErrors(["We couldn't read that file. Please export it as CSV and try again."]);
     } finally {
@@ -75,18 +118,41 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
         const merged = { ...row, ...patch };
         // The raw type tracks manual edits so the type check revalidates.
         if (patch.type) merged.rawType = patch.type;
-        return validateImportRow(merged);
+        return validateImportRow(merged, knownCategories);
       }),
     );
+    if (DATA_MODE === "live") setServerPreview(null);
   }
 
   function removeRow(id: string) {
     setRows((current) => current.filter((row) => row.id !== id));
+    if (DATA_MODE === "live") setServerPreview(null);
   }
 
   async function confirmImport() {
     setSubmitting(true);
     setSubmitError("");
+    if (DATA_MODE === "live") {
+      try {
+        if (!serverPreview) {
+          await refreshServerPreview(rows);
+          return;
+        }
+        const outcome = await confirmServerImport(serverPreview.import_id, includeDuplicates);
+        toast.success(
+          outcome.skipped > 0
+            ? `Imported ${outcome.imported} transactions, ${outcome.skipped} duplicates skipped.`
+            : `Imported ${outcome.imported} transactions.`,
+        );
+        onImported();
+        onClose();
+      } catch (requestError) {
+        setSubmitError(requestError instanceof Error ? requestError.message : "We couldn't import those rows.");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     const result: ServiceResult<ImportOutcome> = await importRows(rows);
     setSubmitting(false);
 
@@ -155,12 +221,12 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              disabled={parsing}
+              disabled={parsing || (DATA_MODE === "live" && (categoriesLoading || categoriesError))}
               className="mt-4 flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-line bg-gray-50/60 px-6 py-10 text-center transition hover:border-brand hover:bg-brand-soft/40 disabled:opacity-60"
             >
               <Upload size={22} className="text-gray-400" />
               <span className="text-sm font-medium text-gray-700">
-                {parsing ? "Reading your file…" : "Choose a CSV file"}
+                {categoriesLoading && DATA_MODE === "live" ? "Loading categories…" : parsing ? "Reading your file…" : "Choose a CSV file"}
               </span>
               <span className="text-[13px] text-gray-500">
                 Nothing is imported until you confirm the preview.
@@ -174,6 +240,12 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
               className="hidden"
               aria-label="Choose CSV file"
             />
+
+            {DATA_MODE === "live" && categoriesError && (
+              <p className="mt-3 text-[13px] text-red-600">
+                We couldn't load your categories. Close this window and try again.
+              </p>
+            )}
 
             {fileErrors.map((error) => (
               <p key={error} className="mt-3 text-[13px] text-red-600">
@@ -205,8 +277,9 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                 <tbody>
                   {rows.map((row) => {
                     const errorList = Object.values(row.errors);
-                    const options =
-                      row.type === "income" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES;
+                    const options = DATA_MODE === "live"
+                      ? knownCategories[row.type]
+                      : row.type === "income" ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES;
                     const selectOptions =
                       row.category && !options.includes(row.category)
                         ? [row.category, ...options]
@@ -306,6 +379,31 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
             </div>
 
             <footer className="border-t border-line px-6 py-4">
+              {DATA_MODE === "live" && serverPreview && (
+                <div className="mb-3 rounded-xl bg-gray-50 px-4 py-3 text-[13px] text-gray-600">
+                  Server preview: {serverPreview.valid_count} valid, {serverPreview.duplicate_count} duplicate, {serverPreview.error_count} invalid out of {serverPreview.row_count} rows.
+                  {serverPreview.row_count > 20 && " The API preview includes the first 20 valid rows; these counts cover the full file."}
+                  {serverPreview.errors_url && (
+                    <button
+                      type="button"
+                      onClick={() => void downloadErrors(serverPreview.errors_url!)}
+                      className="ml-2 inline-flex items-center gap-1 font-medium text-brand-dark underline"
+                    >
+                      <Download size={13} /> Download errors
+                    </button>
+                  )}
+                </div>
+              )}
+              {DATA_MODE === "live" && serverPreview && serverPreview.duplicate_count > 0 && (
+                <label className="mb-3 flex items-center gap-2 text-[13px] text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={includeDuplicates}
+                    onChange={(event) => setIncludeDuplicates(event.target.checked)}
+                  />
+                  Import duplicate rows too
+                </label>
+              )}
               <p className="text-[13px] text-gray-500">
                 <span className="font-medium text-brand-dark">{readyCount} ready</span>
                 {invalidCount > 0 && (
@@ -328,10 +426,14 @@ export function CsvImportModal({ onClose, onImported }: CsvImportModalProps) {
                 <button
                   type="button"
                   onClick={confirmImport}
-                  disabled={submitting || rows.length === 0 || invalidCount > 0}
+                  disabled={submitting || parsing || rows.length === 0 || invalidCount > 0 || serverPreview?.valid_count === 0}
                   className="flex-1 rounded-xl bg-brand py-2.5 text-sm font-medium text-white transition hover:bg-brand-dark disabled:opacity-60"
                 >
-                  {submitting ? "Importing…" : `Import ${readyCount} transactions`}
+                  {submitting
+                    ? "Importing…"
+                    : DATA_MODE === "live" && !serverPreview
+                      ? "Refresh server preview"
+                      : `Import ${serverPreview?.valid_count ?? readyCount} transactions`}
                 </button>
               </div>
               {invalidCount > 0 && (

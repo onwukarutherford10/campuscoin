@@ -11,6 +11,7 @@ import { useCategories } from "../../hooks/useCategories";
 import { CategoryInput } from "../../components/CategoryInput";
 import { recordCorrection, suggestCategory } from "../../services/categorySuggest";
 import { todayISO } from "../../services/store";
+import { DATA_MODE } from "../../services/api/config";
 
 interface TransactionFormModalProps {
   mode: "add" | "edit";
@@ -25,6 +26,20 @@ interface TransactionFormModalProps {
 const inputClass =
   "mt-1.5 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand";
 const labelClass = "block text-[13px] font-medium text-gray-700";
+
+const CATEGORY_ALIASES: Record<string, string> = {
+  "part time job": "part time work",
+  "gig or freelance work": "other income",
+  gifts: "gift",
+  "hostel rent": "housing",
+  academics: "tuition books",
+  subscriptions: "data airtime",
+  miscellaneous: "other expense",
+};
+
+function normalizedLabel(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
@@ -48,6 +63,7 @@ export function TransactionFormModal({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
   const [category, setCategory] = useState(initial?.category ?? "");
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [date, setDate] = useState(initial?.date ?? todayISO());
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [recurring, setRecurring] = useState(initial?.recurring === true);
@@ -60,6 +76,7 @@ export function TransactionFormModal({
   const [categoryTouched, setCategoryTouched] = useState(initial != null);
   const [autoFilled, setAutoFilled] = useState(false);
   const suggestionToken = useRef(0);
+  const categoriesRef = useRef(categories);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const options = categories
@@ -78,7 +95,8 @@ export function TransactionFormModal({
   useEffect(() => {
     selectedRef.current = selected;
     touchedRef.current = categoryTouched;
-  }, [selected, categoryTouched]);
+    categoriesRef.current = categories;
+  }, [selected, categoryTouched, categories]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -89,8 +107,10 @@ export function TransactionFormModal({
   }, [onClose]);
 
   function switchType(next: TransactionType) {
+    suggestionToken.current += 1;
     setType(next);
     setCategory("");
+    setCategoryId("");
     setSuggestion(null);
     setCategoryTouched(false);
     setAutoFilled(false);
@@ -110,18 +130,25 @@ export function TransactionFormModal({
     suggestCategory(value, type).then((result) => {
       if (token !== suggestionToken.current) return;
       if (!result) return;
+      const wanted = CATEGORY_ALIASES[normalizedLabel(result.category)] ?? normalizedLabel(result.category);
+      const match = categoriesRef.current.find(
+        (entry) => entry.type === type && normalizedLabel(entry.name) === wanted,
+      );
+      if (DATA_MODE === "live" && !match) return;
+      const suggestedName = match?.name ?? result.category;
       if (result.confidence === "high" && !touchedRef.current) {
-        setCategory(result.category);
+        setCategory(suggestedName);
+        setCategoryId(match?.id ?? "");
         setAutoFilled(true);
         return;
       }
-      if (result.category !== selectedRef.current) setSuggestion(result.category);
+      if (suggestedName !== selectedRef.current) setSuggestion(suggestedName);
     });
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!selected) {
+    if (!selected || (DATA_MODE === "live" && !categoryId)) {
       setErrors({ category: "Choose a category for this transaction." });
       return;
     }
@@ -131,11 +158,14 @@ export function TransactionFormModal({
       description,
       amount: Number(amount),
       category: selected,
+      categoryId: DATA_MODE === "live" ? categoryId : undefined,
       date,
       notes: notes.trim() || undefined,
       recurring,
       frequency,
       endDate: recurring ? endDate || undefined : undefined,
+      recurringRuleId: initial?.recurringRuleId,
+      previousEndDate: initial?.endDate,
     });
     setSubmitting(false);
 
@@ -217,13 +247,14 @@ export function TransactionFormModal({
             <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-brand-soft/60 px-3 py-2">
               <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-brand-dark">
                 <Sparkles size={13} className="shrink-0" />
-                <span className="truncate">Suggested category: {suggestion}</span>
+                <span className="truncate">On-device suggestion: {suggestion}</span>
               </span>
               <span className="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
                   onClick={() => {
                     setCategory(suggestion);
+                    setCategoryId(categories.find((entry) => entry.type === type && entry.name === suggestion)?.id ?? "");
                     setSuggestion(null);
                   }}
                   className="rounded-lg bg-white px-2 py-1 text-[12px] font-medium text-brand-dark ring-1 ring-brand/30 transition hover:bg-white/80"
@@ -260,23 +291,43 @@ export function TransactionFormModal({
           <label htmlFor="txn-category" className={`mt-4 ${labelClass}`}>
             Category
           </label>
-          <CategoryInput
-            id="txn-category"
-            value={selected}
-            onChange={(value) => {
-              setCategory(value);
-              setCategoryTouched(true);
-              setAutoFilled(false);
-            }}
-            options={selectOptions}
-            placeholder="Select a category"
-            inputClassName={inputClass}
-          />
+          {DATA_MODE === "live" ? (
+            <select
+              id="txn-category"
+              value={categoryId}
+              onChange={(event) => {
+                const picked = categories.find((entry) => entry.id === event.target.value);
+                setCategoryId(event.target.value);
+                setCategory(picked?.name ?? "");
+                setCategoryTouched(true);
+                setAutoFilled(false);
+              }}
+              className={inputClass}
+            >
+              <option value="">Select a category</option>
+              {categories.filter((entry) => entry.type === type).map((entry) => (
+                <option key={entry.id} value={entry.id}>{entry.name}</option>
+              ))}
+            </select>
+          ) : (
+            <CategoryInput
+              id="txn-category"
+              value={selected}
+              onChange={(value) => {
+                setCategory(value);
+                setCategoryTouched(true);
+                setAutoFilled(false);
+              }}
+              options={selectOptions}
+              placeholder="Select a category"
+              inputClassName={inputClass}
+            />
+          )}
           <FieldError message={errors.category} />
           {autoFilled && (
             <p className="mt-1 flex items-center gap-1 text-[12px] text-brand-dark">
               <Sparkles size={12} className="shrink-0" />
-              Auto-matched from your description. Change it anytime.
+              Matched on this device from your description. Change it anytime.
             </p>
           )}
 
@@ -329,6 +380,7 @@ export function TransactionFormModal({
                     onChange={(event) => setFrequency(event.target.value as RecurrenceFrequency)}
                     className={inputClass}
                   >
+                    <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                   </select>

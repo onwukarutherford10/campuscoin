@@ -3,6 +3,19 @@
 import sqlalchemy as sa
 from alembic import op
 
+from app.models.utc_datetime import UTCDateTime
+
+
+def create_table(name, *columns):
+    op.create_table(
+        name,
+        *columns,
+        mysql_engine="InnoDB",
+        mysql_charset="utf8mb4",
+        mysql_collate="utf8mb4_unicode_ci",
+    )
+
+
 revision = "20260924_0002"
 down_revision = "20260924_0001"
 branch_labels = None
@@ -13,21 +26,21 @@ def _timestamps():
     return [
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            UTCDateTime(),
+            server_default=sa.text("CURRENT_TIMESTAMP(6)"),
             nullable=False,
         ),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            UTCDateTime(),
+            server_default=sa.text("CURRENT_TIMESTAMP(6)"),
             nullable=False,
         ),
     ]
 
 
 def upgrade():
-    op.create_table(
+    create_table(
         "users",
         sa.Column("email", sa.String(320), nullable=False),
         sa.Column("password_hash", sa.String(255), nullable=False),
@@ -47,11 +60,11 @@ def upgrade():
     )
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
 
-    op.create_table(
+    create_table(
         "rate_limit_records",
         sa.Column("subject_key", sa.String(320), nullable=False),
         sa.Column("action", sa.String(50), nullable=False),
-        sa.Column("window_started_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("window_started_at", UTCDateTime(), nullable=False),
         sa.Column("attempts", sa.Integer(), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_rate_limit_records")),
@@ -62,13 +75,13 @@ def upgrade():
         ["subject_key", "action", "window_started_at"],
     )
 
-    op.create_table(
+    create_table(
         "auth_sessions",
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("refresh_token_hash", sa.String(64), nullable=False),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("revoked_at", sa.DateTime(timezone=True)),
-        sa.Column("last_used_at", sa.DateTime(timezone=True)),
+        sa.Column("expires_at", UTCDateTime(), nullable=False),
+        sa.Column("revoked_at", UTCDateTime()),
+        sa.Column("last_used_at", UTCDateTime()),
         sa.Column("user_agent", sa.String(255)),
         sa.Column("ip_address", sa.String(64)),
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -84,12 +97,12 @@ def upgrade():
     op.create_index(op.f("ix_auth_sessions_user_id"), "auth_sessions", ["user_id"])
     op.create_index("ix_auth_sessions_user_revoked", "auth_sessions", ["user_id", "revoked_at"])
 
-    op.create_table(
+    create_table(
         "password_reset_tokens",
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("token_hash", sa.String(64), nullable=False),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("used_at", sa.DateTime(timezone=True)),
+        sa.Column("expires_at", UTCDateTime(), nullable=False),
+        sa.Column("used_at", UTCDateTime()),
         sa.Column("id", sa.Uuid(), nullable=False),
         *_timestamps(),
         sa.ForeignKeyConstraint(
@@ -103,7 +116,7 @@ def upgrade():
     )
     op.create_index(op.f("ix_password_reset_tokens_user_id"), "password_reset_tokens", ["user_id"])
 
-    op.create_table(
+    create_table(
         "categories",
         sa.Column("owner_id", sa.Uuid()),
         sa.Column("name", sa.String(80), nullable=False),
@@ -130,7 +143,7 @@ def upgrade():
     )
     op.create_index(op.f("ix_categories_owner_id"), "categories", ["owner_id"])
 
-    op.create_table(
+    create_table(
         "audit_logs",
         sa.Column("actor_id", sa.Uuid()),
         sa.Column("target_user_id", sa.Uuid()),

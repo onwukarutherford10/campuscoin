@@ -95,7 +95,9 @@ export function TransactionDetailModal({
           <DetailRow
             label="Recurring"
             value={
-              transaction.recurring
+              transaction.recurrenceStatus === "ended"
+                ? "Schedule ended"
+                : transaction.recurring
                 ? `Repeats ${(transaction.frequency ?? "monthly").toLowerCase()}${
                     transaction.endDate ? ` until ${formatDayLabel(transaction.endDate)}` : ""
                   }`

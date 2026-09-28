@@ -1,9 +1,11 @@
+import re
 import uuid
+from datetime import timedelta
 
 from werkzeug.security import generate_password_hash
 
 from app.extensions import db
-from app.models import AuditLog, AuthSession, User, UserRole
+from app.models import AuditLog, AuthSession, Category, CategoryType, User, UserRole
 
 
 def csrf(client) -> str:
@@ -27,6 +29,36 @@ def test_csrf_is_required_for_state_changes(client):
     response = client.post("/api/v1/auth/login", json={})
     assert response.status_code == 403
     assert response.get_json()["error"]["code"] == "csrf_failed"
+
+
+def test_custom_csrf_check_handles_mutations_when_flask_wtf_is_enabled(client):
+    client.application.config["WTF_CSRF_ENABLED"] = True
+    token = csrf(client)
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "csrf@example.com", "password": "correct-horse-123", "name": "CSRF Student"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.status_code == 201
+    assert client.get("/api/v1/users/me").status_code == 200
+
+
+def test_credentialed_cors_allows_configured_frontend_origin(client):
+    origin = "http://localhost:5173"
+    response = client.get("/api/v1/auth/csrf", headers={"Origin": origin})
+    assert response.headers["Access-Control-Allow-Origin"] == origin
+    assert response.headers["Access-Control-Allow-Credentials"] == "true"
+
+    preflight = client.options(
+        "/api/v1/auth/register",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type,X-CSRF-Token",
+        },
+    )
+    assert preflight.status_code == 200
+    assert "X-CSRF-Token" in preflight.headers["Access-Control-Allow-Headers"]
 
 
 def test_registration_profile_and_logout_flow(client, app):
@@ -61,6 +93,122 @@ def test_registration_profile_and_logout_flow(client, app):
     assert client.get("/api/v1/users/me").status_code == 401
     with app.app_context():
         assert db.session.query(AuditLog).count() >= 3
+
+
+def test_onboarding_is_resumable_and_persists_across_clients(client, app):
+    with app.app_context():
+        income = Category(name="Allowance", category_type=CategoryType.INCOME)
+        expense = Category(name="Food", category_type=CategoryType.EXPENSE)
+        db.session.add_all([income, expense])
+        db.session.commit()
+        income_id, expense_id = str(income.id), str(expense.id)
+
+    register(client, "onboarding@example.com")
+    token = client.get_cookie("campuscoin_csrf").value
+    partial = client.patch(
+        "/api/v1/users/me",
+        json={
+            "name": "Ada Updated",
+            "academic_year": "300 Level",
+            "currency": "NGN",
+            "timezone": "Africa/Lagos",
+            "income_source_category_ids": [income_id],
+        },
+        headers={"X-CSRF-Token": token},
+    )
+    assert partial.status_code == 200
+    assert partial.get_json()["data"]["onboarding_completed"] is False
+    assert partial.get_json()["data"]["income_source_category_ids"] == [income_id]
+
+    completed = client.patch(
+        "/api/v1/users/me",
+        json={
+            "allowance_baseline": "45000.00",
+            "savings_goal": "10000.00",
+            "spending_category_ids": [expense_id],
+            "onboarding_completed": True,
+        },
+        headers={"X-CSRF-Token": token},
+    )
+    assert completed.status_code == 200
+    assert completed.get_json()["data"]["onboarding_completed"] is True
+
+    second_client = app.test_client()
+    login = post(
+        second_client,
+        "/api/v1/auth/login",
+        {"email": "onboarding@example.com", "password": "correct-horse-123"},
+    )
+    assert login.status_code == 200
+    restored = second_client.get("/api/v1/users/me").get_json()["data"]
+    assert restored["name"] == "Ada Updated"
+    assert restored["spending_category_ids"] == [expense_id]
+    assert restored["onboarding_completed"] is True
+
+
+def test_onboarding_rejects_category_with_wrong_type(client, app):
+    with app.app_context():
+        expense = Category(name="Food", category_type=CategoryType.EXPENSE)
+        db.session.add(expense)
+        db.session.commit()
+        expense_id = str(expense.id)
+    register(client, "invalid-onboarding@example.com")
+    response = client.patch(
+        "/api/v1/users/me",
+        json={"income_source_category_ids": [expense_id]},
+        headers={"X-CSRF-Token": client.get_cookie("campuscoin_csrf").value},
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "invalid_onboarding_category"
+
+
+def test_email_verification_code_is_emailed_and_required(client):
+    client.application.config.update(
+        EMAIL_VERIFICATION_REQUIRED=True,
+        EMAIL_RESEND_COOLDOWN=timedelta(seconds=0),
+    )
+    response = register(client, "verify@example.com")
+    assert response.status_code == 201
+    assert response.get_json()["data"]["email_verified"] is False
+    assert response.get_json()["data"]["verification_sent"] is True
+
+    outbox = client.application.extensions["mail_outbox"]
+    assert outbox[-1]["to"] == "verify@example.com"
+    code = re.search(r"\b(\d{6})\b", outbox[-1]["body"]).group(1)
+
+    blocked = client.get("/api/v1/categories")
+    assert blocked.status_code == 403
+    assert blocked.get_json()["error"]["code"] == "email_verification_required"
+    assert client.get("/api/v1/users/me").status_code == 200
+
+    wrong = post(client, "/api/v1/auth/email/verify", {"code": "000000"})
+    assert wrong.status_code == 400
+    verified = post(client, "/api/v1/auth/email/verify", {"code": code})
+    assert verified.status_code == 200
+    assert verified.get_json()["data"]["email_verified"] is True
+    assert client.get("/api/v1/categories").status_code == 200
+
+
+def test_email_verification_resend_invalidates_previous_code(client, monkeypatch):
+    codes = iter([123456, 654321])
+    monkeypatch.setattr(
+        "app.services.email.verification.secrets.randbelow", lambda _limit: next(codes)
+    )
+    client.application.config.update(
+        EMAIL_VERIFICATION_REQUIRED=True,
+        EMAIL_RESEND_COOLDOWN=timedelta(seconds=0),
+    )
+    register(client, "resend@example.com")
+    first = re.search(
+        r"\b(\d{6})\b", client.application.extensions["mail_outbox"][-1]["body"]
+    ).group(1)
+    resent = post(client, "/api/v1/auth/email/resend")
+    assert resent.status_code == 200
+    second = re.search(
+        r"\b(\d{6})\b", client.application.extensions["mail_outbox"][-1]["body"]
+    ).group(1)
+    assert post(client, "/api/v1/auth/email/verify", {"code": first}).status_code == 400
+    assert post(client, "/api/v1/auth/email/verify", {"code": second}).status_code == 200
 
 
 def test_login_rotation_and_reuse_rejection(client):

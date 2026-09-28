@@ -4,6 +4,9 @@ import { CheckCircle2, Loader2, MailCheck } from "lucide-react";
 import AuthShell from "./AuthShell";
 import { postLoginDestination } from "../../auth/session";
 import { toast } from "../../services/toast";
+import { DATA_MODE } from "../../services/api/config.ts";
+import { resendEmailCode, verifyEmail } from "../../auth/liveAuth.ts";
+import { toServiceError } from "../../services/api/errors.ts";
 
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -23,7 +26,7 @@ const boxClass =
 export function OtpPage() {
   const navigate = useNavigate();
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
-  const [code, setCode] = useState(randomCode);
+  const [demoCode, setDemoCode] = useState(randomCode);
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -85,17 +88,22 @@ export function OtpPage() {
     inputRefs.current[landing]?.focus();
   }
 
-  function handleResend() {
+  async function handleResend() {
     if (secondsLeft > 0) return;
-    setCode(randomCode());
-    setDigits(Array(CODE_LENGTH).fill(""));
-    setError("");
-    setSecondsLeft(RESEND_SECONDS);
-    toast.success("A new code is on its way.");
-    inputRefs.current[0]?.focus();
+    try {
+      if (DATA_MODE === "live") await resendEmailCode();
+      else setDemoCode(randomCode());
+      setDigits(Array(CODE_LENGTH).fill(""));
+      setError("");
+      setSecondsLeft(RESEND_SECONDS);
+      toast.success("A new code is on its way.");
+      inputRefs.current[0]?.focus();
+    } catch (requestError) {
+      setError(toServiceError(requestError).error);
+    }
   }
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const entry = digits.join("");
     if (entry.length < CODE_LENGTH) {
@@ -104,9 +112,24 @@ export function OtpPage() {
     }
 
     setVerifying(true);
+    if (DATA_MODE === "live") {
+      try {
+        await verifyEmail(entry);
+        setVerified(true);
+        toast.success("Email verified. Welcome aboard!");
+        window.setTimeout(() => navigate("/onboarding"), 900);
+      } catch (requestError) {
+        setDigits(Array(CODE_LENGTH).fill(""));
+        setError(toServiceError(requestError).error);
+        inputRefs.current[0]?.focus();
+      } finally {
+        setVerifying(false);
+      }
+      return;
+    }
     window.setTimeout(() => {
       setVerifying(false);
-      if (entry !== code) {
+      if (entry !== demoCode) {
         setDigits(Array(CODE_LENGTH).fill(""));
         setError("That code isn't right. Check it and try again.");
         inputRefs.current[0]?.focus();
@@ -151,10 +174,7 @@ export function OtpPage() {
         <form onSubmit={handleSubmit} className="mt-7">
           <div className="flex items-center gap-2 rounded-xl bg-canvas px-3.5 py-2.5 text-[13px] text-gray-600">
             <MailCheck size={15} className="shrink-0 text-brand-dark" />
-            <span>
-              Demo mode: your code is{" "}
-              <span className="font-semibold tracking-widest text-gray-900">{code}</span>
-            </span>
+            <span>{DATA_MODE === "live" ? "Check your email for the latest code." : <>Demo code: <span className="font-semibold tracking-widest text-gray-900">{demoCode}</span></>}</span>
           </div>
 
           <div

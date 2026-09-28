@@ -242,6 +242,41 @@ html {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Ambient glow blobs
+   A `filter: blur()` circle has an infinite kernel (browsers truncate it
+   around ±3σ), so when an ancestor clips with overflow-hidden the blob is
+   sliced at the section edge and you see a hard coloured line — the classic
+   "glow stops dead halfway down the page" seam. These blobs are plain radial
+   gradients that fall to real transparency inside their own box, so a clip
+   edge can only ever land on zero. No filter also means no extra compositing
+   layer.
+
+   Rules for using them:
+   • keep the box INSIDE the clipped ancestor (edges may touch it);
+   • --glow-rgb sets the colour, --glow-a the peak alpha;
+   • never re-add blur-3xl — that reintroduces the seam.
+   ───────────────────────────────────────────────────────────── */
+.glow-blob {
+  --glow-rgb: 38 153 83; /* brand */
+  --glow-a: 0.22;
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(
+    closest-side,
+    rgb(var(--glow-rgb) / var(--glow-a)) 0%,
+    rgb(var(--glow-rgb) / calc(var(--glow-a) * 0.55)) 40%,
+    rgb(var(--glow-rgb) / calc(var(--glow-a) * 0.14)) 70%,
+    rgb(var(--glow-rgb) / 0) 100%
+  );
+}
+
+/* Mint variant for lighting the dark photo panel and financial surfaces. */
+.glow-blob-mint {
+  --glow-rgb: 110 231 158;
+}
+
+/* ─────────────────────────────────────────────────────────────
    Hero background texture
    ───────────────────────────────────────────────────────────── */
 .hero-grid {
@@ -253,23 +288,30 @@ html {
   mask-image: radial-gradient(ellipse at 50% 26%, black 0%, transparent 78%);
 }
 
+/* Same texture, but faded in at the top so a section that follows the hero
+   continues its grid instead of cutting a hard horizontal seam. */
+.hero-grid-soft {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 24%, black 62%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, black 24%, black 62%, transparent 100%);
+}
+
 /* ─────────────────────────────────────────────────────────────
    Level 3 motion — scroll-driven phone story
    --p (0..1) is written on .story-pin every frame; CSS does the math.
    ───────────────────────────────────────────────────────────── */
 .story-track {
-  height: 240vh;
+  height: 200vh;
 }
 
 @media (min-width: 1024px) {
   .story-track {
-    height: 300vh;
+    height: 250vh;
   }
 }
 
 .story-pin {
-  --rise: 42vh;
-  --enter: clamp(0, calc(var(--p, 0) / 0.14), 1);
+  --rise: 10vh;
+  --enter: clamp(0, calc(var(--p, 0) / 0.08), 1);
   --exit: clamp(0, calc((var(--p, 0) - 0.86) / 0.14), 1);
   perspective: 1600px;
 }
@@ -293,18 +335,18 @@ html {
 }
 
 .floater {
-  opacity: clamp(0, calc((var(--p, 0) - 0.04) * 13), 1);
+  opacity: clamp(0, calc((var(--p, 0) + 0.03) * 12), 1);
   transform: translate3d(0, calc(var(--p, 0) * var(--fd, -60px)), 0);
 }
 
 .story-dots {
-  opacity: clamp(0, calc((var(--p, 0) - 0.12) * 14), 1);
+  opacity: clamp(0, calc((var(--p, 0) + 0.01) * 14), 1);
 }
 
 @media (max-width: 639px) {
   .story-pin {
-    --rise: 30vh;
-    --enter: clamp(0, calc(var(--p, 0) / 0.1), 1);
+    --rise: 8vh;
+    --enter: clamp(0, calc(var(--p, 0) / 0.06), 1);
   }
 
   .story-phone {

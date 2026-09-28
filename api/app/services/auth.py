@@ -53,6 +53,9 @@ class AuthService:
                 email=normalized,
                 password_hash=generate_password_hash(password),
                 name=name.strip(),
+                email_verified_at=(
+                    None if current_app.config["EMAIL_VERIFICATION_REQUIRED"] else utcnow()
+                ),
             )
         )
         db.session.flush()

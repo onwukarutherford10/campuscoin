@@ -1,9 +1,11 @@
 import uuid
 
 from flask import Blueprint, current_app, g, request
+from sqlalchemy import func, select
 
 from app.api.responses import success
 from app.extensions import db
+from app.models import Budget, Job, Notification, Transaction, User
 from app.repositories.auth import AuthRepository
 from app.repositories.users import UserRepository
 from app.schemas.auth import LoginSchema
@@ -16,6 +18,29 @@ from app.utils.security import auth_required
 from app.utils.time import utcnow
 
 admin = Blueprint("admin", __name__)
+
+
+@admin.get("/usage")
+@auth_required(admin=True)
+def usage_statistics():
+    def count(model):
+        return db.session.scalar(select(func.count()).select_from(model))
+
+    active_transactions = db.session.scalar(
+        select(func.count()).select_from(Transaction).where(Transaction.deleted_at.is_(None))
+    )
+    return success(
+        {
+            "users": count(User),
+            "active_users": db.session.scalar(
+                select(func.count()).select_from(User).where(User.is_active.is_(True))
+            ),
+            "transactions": active_transactions,
+            "budgets": count(Budget),
+            "notifications": count(Notification),
+            "jobs": count(Job),
+        }
+    )
 
 
 @admin.post("/login")

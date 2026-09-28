@@ -10,10 +10,19 @@ class JobService:
         self.repository = repository or JobRepository()
 
     def create(
-        self, job_type: JobType, payload: dict[str, Any], idempotency_key: str | None = None
+        self,
+        job_type: JobType,
+        payload: dict[str, Any],
+        idempotency_key: str | None = None,
+        owner_id: uuid.UUID | None = None,
     ) -> Job:
         return self.repository.add(
-            Job(job_type=job_type.value, payload=payload, idempotency_key=idempotency_key)
+            Job(
+                job_type=job_type.value,
+                payload=payload,
+                idempotency_key=idempotency_key,
+                owner_id=owner_id,
+            )
         )
 
     def get(self, job_id: uuid.UUID) -> Job | None:

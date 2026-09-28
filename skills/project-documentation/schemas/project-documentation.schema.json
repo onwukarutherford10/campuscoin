@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProjectDocumentation",
+  "type": "object",
+  "required": ["schema_version", "metadata", "repository_summary", "technology_stack", "architecture", "data_model", "api", "testing", "security", "background_processing", "integrations", "code_figures", "claims", "provenance", "limitations"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "metadata": {"type": "object", "required": ["name", "type", "frameworks", "languages", "branch", "commit", "generated_at", "root"]},
+    "repository_summary": {"type": "object"},
+    "technology_stack": {"type": "array", "items": {"type": "string"}},
+    "architecture": {"type": "object", "required": ["components", "nodes", "edges"]},
+    "data_model": {"type": "object", "required": ["technology", "tables", "migrations", "discrepancies"]},
+    "api": {"type": "object", "required": ["routes"]},
+    "testing": {"type": "object", "required": ["files"]},
+    "security": {"type": "array"},
+    "background_processing": {"type": "array"},
+    "integrations": {"type": "array"},
+    "code_figures": {"type": "array", "items": {"type": "object", "required": ["path", "start_line", "end_line", "code", "source"]}},
+    "claims": {"type": "array", "items": {"type": "object", "required": ["text", "sources"]}},
+    "provenance": {"type": "array", "items": {"$ref": "#/$defs/source"}},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {"source": {"type": "object", "required": ["path", "start_line", "end_line", "evidence_type", "confidence"], "properties": {"path": {"type": "string"}, "start_line": {"type": "integer", "minimum": 1}, "end_line": {"type": "integer", "minimum": 1}, "evidence_type": {"enum": ["implementation", "configuration", "migration", "test", "documentation", "inference"]}, "confidence": {"enum": ["high", "medium", "low"]}}}}
+}

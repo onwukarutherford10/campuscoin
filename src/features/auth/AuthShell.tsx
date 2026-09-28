@@ -58,11 +58,11 @@ export function AuthShell({
         {/* Brand lighting */}
         <div
           aria-hidden="true"
-          className="absolute -left-32 top-1/4 h-80 w-80 rounded-full bg-mint/25 blur-3xl"
+          className="glow-blob glow-blob-mint -left-32 top-1/4 h-72 w-72 [--glow-a:0.25]"
         />
         <div
           aria-hidden="true"
-          className="absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-brand/30 blur-3xl"
+          className="glow-blob right-0 bottom-0 h-72 w-72 [--glow-a:0.3]"
         />
 
         <div className="relative z-10 flex h-full flex-col p-12">

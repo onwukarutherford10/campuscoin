@@ -4,13 +4,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { resetOnboarding, saveSession } from "../../auth/session";
 import AuthShell from "./AuthShell";
+import { DATA_MODE } from "../../services/api/config.ts";
+import { register as registerAccount } from "../../auth/liveAuth.ts";
+import { toServiceError } from "../../services/api/errors.ts";
+import { toast } from "../../services/toast.ts";
 
 const accountSchema = z
   .object({
     email: z.string().email("Invalid email address"),
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
+      .min(10, "Password must be at least 10 characters")
       .regex(/[A-Z]/, "Must contain an uppercase letter")
       .regex(/[0-9!@#$%^&*]/, "Must contain a number or symbol"),
     confirmPassword: z.string(),
@@ -43,7 +47,7 @@ function SignUp() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const hasMinLength = password.length >= 8;
+  const hasMinLength = password.length >= 10;
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumberOrSymbol = /[0-9!@#$%^&*]/.test(password);
   const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
@@ -67,7 +71,7 @@ function SignUp() {
     setStep(2);
   }
 
-  function handleNameSubmit(event: FormEvent) {
+  async function handleNameSubmit(event: FormEvent) {
     event.preventDefault();
     const result = nameSchema.safeParse({ name });
     if (!result.success) {
@@ -76,6 +80,21 @@ function SignUp() {
     }
 
     setSubmitting(true);
+    if (DATA_MODE === "live") {
+      try {
+        const account = await registerAccount(result.data.name, email, password);
+        if (!account.verification_sent) {
+          toast.error("Your account was created, but the verification email could not be sent. Use resend on the next screen.");
+        }
+        navigate("/otp");
+      } catch (error) {
+        const failure = toServiceError(error);
+        setErrors({ ...failure.errors, form: failure.error });
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     localStorage.setItem("userName", result.data.name);
     saveSession({ name: result.data.name, email });
     resetOnboarding();
@@ -180,7 +199,7 @@ function SignUp() {
           {showRequirements && (
             <ul className="mt-3 space-y-1 text-[12px]">
               {[
-                { ok: hasMinLength, label: "At least 8 characters" },
+                { ok: hasMinLength, label: "At least 10 characters" },
                 { ok: hasUppercase, label: "One uppercase letter" },
                 { ok: hasNumberOrSymbol, label: "One number or symbol" },
                 { ok: passwordsMatch, label: "Passwords match" },
@@ -226,6 +245,7 @@ function SignUp() {
             className={inputClass}
           />
           {errors.name && <p className="mt-1 text-[13px] text-red-600">{errors.name}</p>}
+          {errors.form && <p className="mt-3 text-[13px] text-red-600">{errors.form}</p>}
 
           <button
             type="submit"
