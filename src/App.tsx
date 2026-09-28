@@ -1,6 +1,13 @@
 import { useEffect } from "react";
 import { Navigate, createBrowserRouter, RouterProvider } from "react-router-dom";
-import LandingPage from "./features/landing/LandingPage";
+import MarketingLayout from "./layouts/MarketingLayout";
+import HomePage from "./features/landing/pages/HomePage";
+import FeaturesPage from "./features/landing/pages/FeaturesPage";
+import HowItWorksPage from "./features/landing/pages/HowItWorksPage";
+import AboutPage from "./features/landing/pages/AboutPage";
+import FaqPage from "./features/landing/pages/FaqPage";
+import ContactPage from "./features/landing/pages/ContactPage";
+import NotFoundPage from "./features/landing/pages/NotFoundPage";
 import Login from "./features/auth/Login";
 import SignUp from "./features/auth/SignUp";
 import OtpPage from "./features/auth/Otp";
@@ -71,8 +78,19 @@ function ProtectedOtp() {
 }
 
 const router = createBrowserRouter([
-  { path: "/", element: <LandingPage /> },
-  {path: "/login", element: <Login/>},
+  {
+    element: <MarketingLayout />,
+    children: [
+      { path: "/", element: <HomePage /> },
+      { path: "/features", element: <FeaturesPage /> },
+      { path: "/how-it-works", element: <HowItWorksPage /> },
+      { path: "/about", element: <AboutPage /> },
+      { path: "/faq", element: <FaqPage /> },
+      { path: "/contact", element: <ContactPage /> },
+      { path: "*", element: <NotFoundPage /> },
+    ],
+  },
+  { path: "/login", element: <Login /> },
   { path: "/signup", element: <SignUp /> },
   { path: "/otp", element: <ProtectedOtp /> },
   { path: "/forgetpassword", element: <ForgetPassword /> },
@@ -90,8 +108,6 @@ const router = createBrowserRouter([
       { path: "/settings", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
     ],
   },
-  
-
 ]);
 
 function App() {

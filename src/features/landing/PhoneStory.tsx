@@ -126,7 +126,7 @@ export function PhoneStory() {
         aria-label="Campus Coin product tour"
         className="relative overflow-hidden bg-night text-white"
       >
-        <div aria-hidden="true" className="hero-grid absolute inset-0" />
+        <div aria-hidden="true" className="hero-grid hero-grid-soft absolute inset-0" />
         <div
           aria-hidden="true"
           className="absolute inset-x-[-20%] top-[-16%] h-[46%]"
@@ -159,26 +159,30 @@ export function PhoneStory() {
     >
       <div ref={pinRef} className="story-pin sticky top-0 h-[100svh] overflow-hidden">
         {/* Ambient texture + glow */}
-        <div aria-hidden="true" className="hero-grid absolute inset-0 z-0" />
+        <div aria-hidden="true" className="hero-grid hero-grid-soft absolute inset-0 z-0" />
+        {/* Both washes sit inside the pin's box and reach transparency before
+            its edges, so the sticky container's overflow-hidden never cuts
+            them into a line (the top one used to start above the section and
+            the bottom one hung 38% below it). */}
         <div
           aria-hidden="true"
-          className="absolute inset-x-[-20%] top-[-16%] z-0 h-[46%]"
+          className="absolute inset-x-[-20%] top-0 z-0 h-[52%]"
           style={{
             background:
-              "radial-gradient(52% 90% at 50% -4%, rgba(110,231,158,0.80) 0%, rgba(110,231,158,0.28) 46%, transparent 76%)",
+              "radial-gradient(52% 62% at 50% 50%, rgba(110,231,158,0.72) 0%, rgba(110,231,158,0.26) 46%, transparent 76%)",
           }}
         />
         <div
           aria-hidden="true"
-          className="story-glow absolute inset-x-[-12%] bottom-[-38%] z-0 h-[80vh]"
+          className="story-glow absolute inset-x-[-12%] bottom-0 z-0 h-[64%]"
           style={{
             background:
-              "radial-gradient(55% 95% at 50% 112%, rgba(110,231,158,0.6) 0%, rgba(110,231,158,0.18) 48%, transparent 78%)",
+              "radial-gradient(55% 56% at 50% 55%, rgba(110,231,158,0.6) 0%, rgba(110,231,158,0.2) 34%, transparent 60%)",
           }}
         />
         <div
           aria-hidden="true"
-          className="absolute -right-40 top-1/3 z-0 h-96 w-96 rounded-full bg-brand/25 blur-3xl"
+          className="glow-blob -right-40 top-1/2 z-0 h-96 w-96 -translate-y-1/2 [--glow-a:0.25]"
         />
 
         {/* Floating financial widgets */}

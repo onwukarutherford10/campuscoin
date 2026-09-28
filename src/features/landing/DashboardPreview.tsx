@@ -23,7 +23,7 @@ const ACTIVITY = [
 /** Illustrative dashboard preview in a browser frame, animated on reveal. */
 export function DashboardPreview() {
   return (
-    <section className="bg-canvas px-6 py-24">
+    <section className="bg-white px-6 py-20 sm:py-24 lg:py-28">
       <div className="mx-auto max-w-3xl text-center">
         <Reveal>
           <span className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 text-[12px] font-bold text-brand-dark">
@@ -46,7 +46,7 @@ export function DashboardPreview() {
       </div>
 
       <Reveal delay={0.1}>
-        <div className="mx-auto mt-14 max-w-5xl overflow-hidden rounded-[2rem] bg-white shadow-[0_48px_96px_-48px_rgba(0,0,0,0.4)] ring-1 ring-gray-200">
+        <div className="mx-auto mt-10 max-w-5xl overflow-hidden rounded-[2rem] bg-white shadow-[0_48px_96px_-48px_rgba(0,0,0,0.4)] ring-1 ring-gray-200 sm:mt-14">
           {/* Browser chrome */}
           <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50 px-5 py-3.5">
             <span className="flex gap-1.5" aria-hidden="true">

@@ -1,0 +1,50 @@
+# Render Blueprint — CampusCoin API
+# This file must live at the root of the repository you connect to Render
+# (the folder that contains `api/`). Step-by-step guide: DEPLOYMENT.md.
+services:
+  - type: web
+    name: campuscoin-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # Non-secret configuration, safe in git.
+      - key: APP_ENV
+        value: production
+      - key: FLASK_APP
+        value: wsgi:app
+      - key: LOG_LEVEL
+        value: INFO
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: ADMIN_NAME
+        value: CampusCoin Admin
+      # Generated once by Render and never written back to this file.
+      - key: SECRET_KEY
+        generateValue: true
+      # Secrets: Render prompts for these during the FIRST Blueprint sync only.
+      # Later changes are made in the Render Dashboard -> Environment.
+      - key: DATABASE_URL
+        sync: false
+      - key: MYSQL_SSL_CA
+        sync: false
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_APP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false

@@ -31,22 +31,15 @@ const ITEMS = [
 /** FAQ accordion using native <details> for free keyboard + screen-reader support. */
 export function Faq() {
   return (
-    <section id="faq" className="bg-canvas px-6 py-24 sm:py-28">
+    <section className="bg-canvas px-6 py-20 sm:py-24 lg:py-28">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
-          <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 text-[12px] font-bold text-brand-dark">
-              FAQ
-            </span>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <h2 className="font-display mt-6 text-3xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl">
-              Questions, answered.
-            </h2>
-          </Reveal>
+          <h2 className="font-display text-3xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl">
+            Questions, answered.
+          </h2>
         </div>
 
-        <div className="mt-12 space-y-4">
+        <div className="mt-10 space-y-4 sm:mt-14">
           {ITEMS.map((item, index) => (
             <Reveal key={item.q} delay={index * 0.06}>
               <details className="group rounded-2xl border border-gray-200/80 bg-white p-5 transition hover:border-brand/40 open:shadow-[0_16px_32px_-20px_rgba(0,0,0,0.18)]">

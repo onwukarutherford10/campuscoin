@@ -32,7 +32,7 @@ const CARDS = [
 /** The four core benefits, each with a live product widget. */
 export function Benefits() {
   return (
-    <section id="features" className="relative bg-white px-6 py-24 sm:py-28">
+    <section className="relative bg-canvas px-6 py-20 sm:py-24 lg:py-28">
       <div className="mx-auto max-w-3xl text-center">
         <Reveal>
           <span className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 text-[12px] font-bold text-brand-dark">
@@ -53,7 +53,7 @@ export function Benefits() {
         </Reveal>
       </div>
 
-      <div className="mx-auto mt-14 grid max-w-6xl gap-6 md:grid-cols-2">
+      <div className="mx-auto mt-10 grid max-w-6xl gap-6 sm:mt-14 md:grid-cols-2">
         {CARDS.map((card, index) => (
           <Reveal key={card.title} delay={index * 0.08}>
             <div className="lift h-full rounded-[2rem] border border-gray-200/70 bg-gray-100/70 p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-[0_24px_48px_-24px_rgba(0,0,0,0.16)] sm:p-8">

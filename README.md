@@ -14,6 +14,22 @@ The separate administrator panel is available directly at `/admin`. Seed an admi
 
 For an existing administrator whose password is unknown, open `/admin`, choose **Forgot password?**, and enter the address configured as `ADMIN_EMAIL` in `api/.env`. Verify the six-digit code delivered to that mailbox first; the new-password form appears only after verification. After reset, the form returns to `/admin` for sign-in. Configure working `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_APP_PASSWORD`, and `SMTP_FROM` in `api/.env` first. The code expires after 10 minutes; requests have a resend cooldown. The existing password cannot be read from the database, and rerunning `seed-admin` does not replace it. Keep SMTP credentials and reset codes private; never commit `.env`.
 
+## Public site structure
+
+The public site is a routed multi-page area, not a single scrolling page. `src/layouts/MarketingLayout.tsx` owns the shared floating nav, skip link, scroll reset and footer, and each URL renders its own file from `src/features/landing/pages/`:
+
+| Route | Page | Contents |
+| --- | --- | --- |
+| `/` | Home | Hero, scroll-driven product story, dashboard preview, page directory |
+| `/features` | Features | Benefit cards with live widgets, product spotlights |
+| `/how-it-works` | How It Works | The four-step journey from signup to insight |
+| `/about` | About | Product principles and privacy stance |
+| `/faq` | FAQ | The full question list plus a contact prompt |
+| `/contact` | Contact | Validated message form and direct contact channels |
+| `*` | Not found | 404 with a site map of every page |
+
+Navigation uses router links (`NavLink`/`Link`) instead of in-page anchors, the active route is marked with `aria-current`, and each page sets its own `document.title` through `usePageTitle` in `src/features/landing/`.
+
 ## Deployment
 
 Serve `/api/v1` through the same HTTPS origin as the frontend, or use HTTPS subdomains that are same-site and explicitly listed in `FRONTEND_ORIGINS`. Credentialed cross-origin requests require the exact frontend origin, not `*`. Auth cookies are `Secure`, `HttpOnly`, and `SameSite=Lax` in production. Configure the frontend host's reverse proxy to forward `/api/v1` to Flask; Vite's development proxy does not run in production. Set production API and data mode values in the deployment environment when live screens are ready.

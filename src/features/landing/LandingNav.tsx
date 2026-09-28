@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { BrandMark } from "../../components/BrandMark";
 import { getSession } from "../../auth/session";
@@ -7,17 +7,23 @@ import { useScrolled } from "./storyHooks";
 import { DATA_MODE } from "../../services/api/config.ts";
 import { useLiveAuth } from "../../auth/useLiveAuth.ts";
 
-const LINKS = [
-  { href: "#top", label: "Home" },
-  { href: "#features", label: "Features" },
-  { href: "#how", label: "How It Works" },
-  { href: "#about", label: "About" },
-  { href: "#faq", label: "FAQ" },
+const NAV_LINKS = [
+  { to: "/", label: "Home", end: true },
+  { to: "/features", label: "Features", end: false },
+  { to: "/how-it-works", label: "How It Works", end: false },
+  { to: "/about", label: "About", end: false },
+  { to: "/faq", label: "FAQ", end: false },
+  { to: "/contact", label: "Contact", end: false },
 ];
 
+function navItemClass(isActive: boolean): string {
+  return isActive ? "text-mint" : "text-white/70";
+}
+
 /**
- * Floating sticky navbar: transparent over the hero, then shrinks into a
- * blurred dark pill on scroll. Animated hamburger panel on mobile.
+ * Floating sticky navbar: transparent over the home hero, then shrinks into a
+ * blurred dark pill on scroll. Highlights the active route and collapses into
+ * an animated panel on mobile.
  */
 export function LandingNav() {
   const scrolled = useScrolled(24);
@@ -41,15 +47,21 @@ export function LandingNav() {
           <BrandMark inverted />
         </Link>
 
-        <div className="hidden items-center gap-7 lg:flex">
-          {LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-[13px] font-medium text-white/70 transition hover:text-mint"
+        <div className="hidden items-center gap-5 lg:flex xl:gap-7">
+          {NAV_LINKS.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              className={({ isActive }) =>
+                [
+                  "text-[13px] font-medium transition hover:text-mint",
+                  navItemClass(isActive),
+                ].join(" ")
+              }
             >
               {link.label}
-            </a>
+            </NavLink>
           ))}
         </div>
 
@@ -96,16 +108,24 @@ export function LandingNav() {
           className="pop-in mx-auto mt-3 max-w-6xl rounded-3xl border border-white/10 bg-night/95 p-5 shadow-2xl backdrop-blur-xl lg:hidden"
         >
           <div className="flex flex-col gap-1">
-            {LINKS.map((link, index) => (
-              <a
-                key={link.href}
-                href={link.href}
+            {NAV_LINKS.map((link, index) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
                 onClick={close}
-                className="rounded-xl px-3 py-3 text-[15px] font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+                className={({ isActive }) =>
+                  [
+                    "rounded-xl px-3 py-3 text-[15px] font-medium transition hover:bg-white/10",
+                    isActive
+                      ? "bg-white/10 text-mint hover:text-mint"
+                      : "text-white/80 hover:text-white",
+                  ].join(" ")
+                }
                 style={{ animation: `fade-up 0.4s var(--cc-ease) ${index * 0.04}s both` }}
               >
                 {link.label}
-              </a>
+              </NavLink>
             ))}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 
 /** Thin concentric fingerprint arcs (reference-style corner decoration). */
 function SpiralArc({ className }: { className?: string }) {
@@ -31,28 +31,29 @@ function SpiralArc({ className }: { className?: string }) {
 export function HeroSection() {
   return (
     <section
-      id="top"
-      className="relative flex min-h-[100svh] flex-col overflow-hidden bg-night text-white"
+      className="relative flex min-h-[82svh] flex-col overflow-hidden bg-night text-white sm:min-h-[100svh]"
     >
       {/* Ambient texture + lighting */}
       <div aria-hidden="true" className="hero-grid absolute inset-0" />
       <div
         aria-hidden="true"
-        className="absolute inset-x-[-20%] bottom-[-30%] h-[78%]"
+        className="absolute inset-x-[-20%] bottom-0 h-[62%]"
         style={{
+          /* Peak sits above the section's bottom edge and the gradient reaches
+             transparency before it, so the glow is never sliced by the clip. */
           background:
-            "radial-gradient(52% 88% at 50% 106%, rgba(110,231,158,0.95) 0%, rgba(110,231,158,0.35) 46%, transparent 76%)",
+            "radial-gradient(58% 26% at 50% 70%, rgba(110,231,158,0.58) 0%, rgba(110,231,158,0.20) 46%, transparent 100%)",
         }}
       />
       <div
         aria-hidden="true"
-        className="absolute -right-40 top-1/4 h-96 w-96 rounded-full bg-brand/20 blur-3xl"
+        className="glow-blob -right-40 top-1/2 h-96 w-96 -translate-y-1/2"
       />
       <SpiralArc className="absolute -left-20 top-24 hidden h-56 w-56 md:block" />
       <SpiralArc className="absolute -right-20 top-16 hidden h-56 w-56 md:block lg:h-72 lg:w-72" />
 
       {/* Hero copy — the whole first screen */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-28 pt-32 text-center sm:pt-36">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-28 text-center sm:pt-36 sm:pb-24">
         <h1 className="font-display text-[34px] font-bold leading-[1.06] tracking-tight text-white sm:text-6xl lg:text-[68px]">
           Take Control of Your
           <br className="hidden sm:block" />{" "}
@@ -64,35 +65,35 @@ export function HeroSection() {
         </p>
 
         {/* Primary + secondary CTA (stacked full-width on mobile for thumb reach) */}
-        <div className="mt-9 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
+        <div className="mt-8 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center">
           <Link
             to="/signup"
             className="btn-press rounded-full bg-mint px-9 py-4 text-center text-[15px] font-bold text-ink hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_0_36px_rgba(110,231,158,0.45)] sm:py-3.5"
           >
             Get Started
           </Link>
-          <a
-            href="#features"
-            className="btn-press flex items-center justify-center gap-2 rounded-full bg-white/8 px-9 py-4 text-center text-[15px] font-semibold text-white ring-1 ring-white/20 hover:-translate-y-0.5 hover:bg-white/15 sm:py-3.5"
+          <Link
+            to="/features"
+            className="btn-press flex items-center justify-center gap-2 rounded-full bg-white px-9 py-4 text-center text-[15px] font-bold text-ink hover:-translate-y-0.5 hover:shadow-[0_0_36px_rgba(255,255,255,0.4)] sm:py-3.5"
           >
             Explore Campus Coin
-            <ChevronDown size={16} />
-          </a>
+            <ArrowRight size={16} />
+          </Link>
         </div>
 
         {/* Quiet trust line */}
-        <p className="mt-8 text-[12px] tracking-wide text-white/40">
+        <p className="mt-7 text-[12px] tracking-wide text-white/40">
           No bank link needed · CSV import · Data stays on your device
         </p>
       </div>
 
-      {/* Scroll cue */}
+      {/* Scroll cue — deliberately quiet so it never competes with the CTAs */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-6 z-10 flex flex-col items-center gap-1 text-white/45"
+        className="absolute inset-x-0 bottom-5 z-10 flex flex-col items-center gap-0.5 text-white/25"
       >
-        <span className="text-[10px] font-semibold uppercase tracking-[0.28em]">Scroll</span>
-        <ChevronDown size={16} className="animate-bounce" />
+        <span className="text-[8px] font-semibold uppercase tracking-[0.3em]">Scroll</span>
+        <ChevronDown size={13} />
       </div>
     </section>
   );

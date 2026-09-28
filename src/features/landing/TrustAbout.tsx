@@ -27,12 +27,12 @@ const PRINCIPLES = [
 /** About / trust section — honest product principles instead of invented stats. */
 export function TrustAbout() {
   return (
-    <section id="about" className="bg-white px-6 py-24 sm:py-28">
+    <section className="bg-white px-6 py-20 sm:py-24 lg:py-28">
       <div className="mx-auto max-w-6xl">
         <div className="max-w-2xl">
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 text-[12px] font-bold text-brand-dark">
-              About Campus Coin
+              Our principles
             </span>
           </Reveal>
           <Reveal delay={0.08}>
@@ -50,7 +50,7 @@ export function TrustAbout() {
           </Reveal>
         </div>
 
-        <div className="mt-14 grid gap-5 sm:grid-cols-2">
+        <div className="mt-10 grid gap-5 sm:mt-14 sm:grid-cols-2">
           {PRINCIPLES.map((principle, index) => (
             <Reveal key={principle.title} delay={index * 0.08}>
               <div className="lift h-full rounded-3xl border border-gray-200/70 bg-gray-100/60 p-7 hover:shadow-[0_24px_48px_-24px_rgba(0,0,0,0.16)]">

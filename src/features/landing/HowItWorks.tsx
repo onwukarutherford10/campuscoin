@@ -26,16 +26,19 @@ const STEPS = [
 /** Dark, cinematic four-step process with a connecting progress line. */
 export function HowItWorks() {
   return (
-    <section id="how" className="relative overflow-hidden bg-night px-6 py-24 text-white sm:py-28">
+      <section className="relative overflow-hidden bg-night px-6 py-20 text-white sm:py-24 lg:py-28">
+      {/* Gradient glow (see .glow-blob): transparency is reached at the box
+          edges, so this section's overflow-hidden can never slice it into a
+          seam where it meets the hero above. */}
       <div
         aria-hidden="true"
-        className="absolute left-1/2 top-0 h-72 w-[70vw] -translate-x-1/2 rounded-full bg-brand/20 blur-3xl"
+        className="glow-blob left-1/2 top-0 h-72 w-[70vw] -translate-x-1/2"
       />
       <div className="relative mx-auto max-w-6xl">
         <div className="text-center">
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-1.5 text-[12px] font-bold text-mint ring-1 ring-mint/25">
-              How it works
+              The process
             </span>
           </Reveal>
           <Reveal delay={0.08}>

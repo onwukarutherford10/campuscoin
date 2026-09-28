@@ -97,7 +97,7 @@ export function Spotlights() {
   return (
     <>
       {/* ── Expense tracking ── */}
-      <section className="bg-white px-6 py-24">
+      <section className="bg-white px-6 py-20 sm:py-24 lg:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 text-[12px] font-bold text-brand-dark">
@@ -125,7 +125,7 @@ export function Spotlights() {
       </section>
 
       {/* ── Saving ── */}
-      <section className="bg-canvas px-6 py-24">
+      <section className="bg-canvas px-6 py-20 sm:py-24 lg:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <Reveal className="lg:order-2">
             <span className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 text-[12px] font-bold text-brand-dark">
@@ -182,7 +182,7 @@ export function Spotlights() {
       </section>
 
       {/* ── Insights ── */}
-      <section className="bg-white px-6 py-24">
+      <section className="bg-white px-6 py-20 sm:py-24 lg:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-4 py-1.5 text-[12px] font-bold text-brand-dark">
