@@ -21,12 +21,9 @@ import { DATA_MODE } from "./services/api/config.ts";
 import { restoreSession } from "./auth/liveAuth.ts";
 import { useLiveAuth } from "./auth/useLiveAuth.ts";
 import { LiveProfilePage } from "./features/profile/LiveProfilePage.tsx";
-<<<<<<< HEAD
-import NotFound from "./components/NotFound.tsx";
 
-=======
+
 import AdminPage from "./features/admin/AdminPage.tsx";
->>>>>>> 0dccc178c7442305006bb6089c9ff2f8d24b4a70
 
 
 function ProtectedLayout() {
@@ -83,7 +80,6 @@ const router = createBrowserRouter([
   { path: "/admin", element: <AdminPage /> },
   { path: "/onboarding", element: <ProtectedOnboarding /> },
   { path: "/onboarding/complete", element: <ProtectedOnboardingComplete /> },
-  {path: "*", element: <NotFound />},
   { element: <ProtectedLayout />,
     children: [
       { path: "/dashboard", element: <Dashboard /> },
