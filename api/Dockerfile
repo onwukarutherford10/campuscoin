@@ -13,7 +13,7 @@ WORKDIR /srv/api
 COPY pyproject.toml ./
 COPY app ./app
 COPY migrations ./migrations
-COPY alembic.ini wsgi.py ./
+COPY alembic.ini wsgi.py openapi.yaml ./
 
 # gunicorn comes from pyproject dependencies; .env is deliberately not baked
 # in (secrets arrive as environment variables from the host).
