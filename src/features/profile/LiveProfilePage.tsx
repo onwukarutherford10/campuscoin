@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { useOutletContext } from "react-router-dom";
-import { UserRound } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { Camera, Trash2, UserRound } from "lucide-react";
 import PageHeader from "../../components/PageHeader";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { Card, ErrorState } from "../../components/StateViews";
 import { ListSkeleton } from "../../components/Skeletons";
 import { api } from "../../services/api";
@@ -10,6 +11,11 @@ import { toServiceError } from "../../services/api/errors";
 import { updateLiveProfile } from "../../auth/liveAuth";
 import { toast } from "../../services/toast";
 import { ThemeSettings } from "./ThemeSettings";
+import {
+  deleteLiveAccount,
+  removeProfileAvatar,
+  uploadProfileAvatar,
+} from "../../services/liveProfile";
 
 interface LayoutContext {
   openMenu: () => void;
@@ -18,14 +24,23 @@ interface LayoutContext {
 }
 
 const inputClass = "mt-1.5 h-11 w-full rounded-xl border border-line px-3 text-sm outline-none transition focus:border-brand disabled:bg-gray-50 disabled:text-gray-500";
+const MAX_AVATAR_BYTES = 1.5 * 1024 * 1024;
+const AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export function LiveProfilePage() {
   const { openMenu, darkMode, toggleTheme } = useOutletContext<LayoutContext>();
+  const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<ApiUser | null>(null);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   function load() {
     setLoading(true);
@@ -68,6 +83,61 @@ export function LiveProfilePage() {
     }
   }
 
+  async function handleAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setAvatarError("");
+    if (!AVATAR_TYPES.has(file.type)) {
+      setAvatarError("Choose a JPG, PNG or WebP image.");
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setAvatarError("That photo is over 1.5 MB. Pick a smaller one.");
+      return;
+    }
+    setAvatarBusy(true);
+    try {
+      setProfile(await uploadProfileAvatar(file));
+      toast.success("Profile photo updated.");
+    } catch (requestError) {
+      setAvatarError(
+        requestError instanceof Error
+          ? requestError.message
+          : "The profile photo could not be uploaded.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    setAvatarBusy(true);
+    setAvatarError("");
+    try {
+      setProfile(await removeProfileAvatar());
+      toast.success("Profile photo removed.");
+    } catch (requestError) {
+      setAvatarError(toServiceError(requestError).error);
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteLiveAccount();
+      toast.success("Your account has been deleted.");
+      navigate("/", { replace: true });
+    } catch (requestError) {
+      setDeleteError(toServiceError(requestError).error);
+      setDeleting(false);
+    }
+  }
+
   return (
     <>
       <PageHeader title="Profile & settings" subtitle="Your saved Campus Coin account details." onOpenMenu={openMenu} />
@@ -77,8 +147,42 @@ export function LiveProfilePage() {
         <div className="grid gap-5 lg:grid-cols-3">
           <Card title="Profile photo">
             <div className="flex flex-col items-center gap-3 py-3 text-center">
-              <span className="flex h-24 w-24 items-center justify-center rounded-full bg-brand-soft text-brand-dark"><UserRound size={36} /></span>
-              <p className="text-sm text-gray-600">Profile photo uploads are not available yet.</p>
+              <span className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-brand-soft text-brand-dark">
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Your profile" className="h-full w-full object-cover" />
+                ) : (
+                  <UserRound size={36} />
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={avatarBusy}
+                className="flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              >
+                <Camera size={15} />
+                {avatarBusy ? "Saving…" : profile.avatar_url ? "Change photo" : "Upload photo"}
+              </button>
+              {profile.avatar_url && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAvatar}
+                  disabled={avatarBusy}
+                  className="flex items-center gap-1.5 text-[13px] text-gray-500 transition hover:text-red-600 disabled:opacity-60"
+                >
+                  <Trash2 size={13} /> Remove photo
+                </button>
+              )}
+              <p className="text-xs text-gray-400">JPG, PNG or WebP, up to 1.5 MB.</p>
+              {avatarError && <p className="text-[13px] text-red-600">{avatarError}</p>}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatar}
+                className="hidden"
+                aria-label="Choose profile photo"
+              />
             </div>
           </Card>
           <Card title="Your details" className="lg:col-span-2">
@@ -107,11 +211,35 @@ export function LiveProfilePage() {
             </dl>
           </Card>
           <ThemeSettings darkMode={darkMode} onToggle={toggleTheme} />
-          <Card title="Close account" className="lg:col-span-3 border border-red-100">
-            <p className="text-sm text-gray-600">Self-service account closure is not available yet. No local-only deletion will be reported as account closure.</p>
-            <button type="button" disabled className="mt-4 rounded-xl border border-red-100 px-5 py-2.5 text-sm font-medium text-red-300">Close account unavailable</button>
+          <Card title="Delete account" className="lg:col-span-3 border border-red-100">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">Permanently delete your profile and all of its financial data.</p>
+                <p className="mt-1 text-[13px] text-gray-500">This cannot be undone.</p>
+                {deleteError && <p className="mt-2 text-[13px] text-red-600">{deleteError}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="shrink-0 rounded-xl border border-red-200 bg-white px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+              >
+                Delete account
+              </button>
+            </div>
           </Card>
         </div>
+      )}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete your account?"
+          message="Your profile, transactions, budgets, categories and profile photo will be permanently deleted. Are you sure?"
+          confirmLabel={deleting ? "Deleting…" : "Delete account"}
+          danger
+          onConfirm={handleDeleteAccount}
+          onCancel={() => { if (!deleting) setConfirmDelete(false); }}
+        >
+          {deleteError && <p className="mt-3 text-[13px] text-red-600">{deleteError}</p>}
+        </ConfirmDialog>
       )}
     </>
   );

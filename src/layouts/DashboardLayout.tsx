@@ -28,7 +28,7 @@ export function DashboardLayout() {
   const section = location.pathname.split("/")[1] || "dashboard";
   const labels: Record<string, string> = {
     dashboard: "Dashboard", transactions: "Transactions", budgets: "Budgets",
-    reports: "Reports", settings: "Settings", categories: "Categories",
+    reports: "Reports", profile: "Profile", categories: "Categories",
   };
   const currentLabel = labels[section] ?? "Dashboard";
 
@@ -57,7 +57,7 @@ export function DashboardLayout() {
                   <li aria-hidden="true">/</li>
                   {section === "categories" ? (
                     <>
-                      <li><Link to="/settings" className="transition hover:text-brand-dark">Settings</Link></li>
+                      <li><Link to="/profile" className="transition hover:text-brand-dark">Profile</Link></li>
                       <li aria-hidden="true">/</li>
                     </>
                   ) : null}

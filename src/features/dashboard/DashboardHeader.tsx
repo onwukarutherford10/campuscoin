@@ -21,7 +21,7 @@ export function DashboardHeader({ onOpenMenu, alerts = [], onRead, onDismiss }: 
   const auth = useLiveAuth();
   const profile = DATA_MODE === "mock" ? loadOnboardingData() : null;
   const session = getSession();
-  const avatar = DATA_MODE === "live" ? null : getProfileSync().avatar;
+  const avatar = DATA_MODE === "live" ? auth.user?.avatar_url ?? null : getProfileSync().avatar;
   const displayName = DATA_MODE === "live" ? auth.user?.name ?? "" : profile?.fullName || session?.name || "";
   const name = firstNameOf(displayName);
   const initials = (displayName || "Campus Coin")
