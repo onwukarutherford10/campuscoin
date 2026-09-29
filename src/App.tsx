@@ -105,7 +105,7 @@ const router = createBrowserRouter([
       { path: "/budgets", element: <BudgetsPage /> },
       { path: "/categories", element: <CategoriesPage /> },
       { path: "/reports", element: <ReportsPage /> },
-      { path: "/settings", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
+      { path: "/profile", element: DATA_MODE === "live" ? <LiveProfilePage /> : <ProfilePage /> },
     ],
   },
 ]);

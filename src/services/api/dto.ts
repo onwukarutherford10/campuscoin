@@ -16,6 +16,7 @@ export interface ApiUser {
   is_active: boolean;
   email_verified: boolean;
   onboarding_completed: boolean;
+  avatar_url: string | null;
   income_source_category_ids: string[];
   spending_category_ids: string[];
 }

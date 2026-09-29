@@ -46,7 +46,7 @@ export function budgetFromApi(value: ApiBudget): Budget {
 }
 
 export function profileFromApi(value: ApiUser): UserProfile {
-  return { fullName: value.name, email: value.email, avatar: null };
+  return { fullName: value.name, email: value.email, avatar: value.avatar_url };
 }
 
 /** Keep API-only ledger fields intact until the transaction UI is migrated. */

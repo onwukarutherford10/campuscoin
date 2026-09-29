@@ -163,7 +163,7 @@ export function ProfilePage() {
       setCloseError(result.error ?? "We couldn't close the account.");
       return;
     }
-    toast.success("Your account has been closed. Sorry to see you go.");
+    toast.success("Your account has been deleted.");
     navigate("/login", { replace: true });
   }
 
@@ -323,11 +323,11 @@ export function ProfilePage() {
 
           {/* Danger zone */}
           <ThemeSettings darkMode={darkMode} onToggle={toggleTheme} />
-          <Card title="Close account" className="lg:col-span-3 border border-red-100">
+          <Card title="Delete account" className="lg:col-span-3 border border-red-100">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Closing your account removes your profile, transactions, budgets, categories,
+                  Deleting your account removes your profile, transactions, budgets, categories,
                   insights and saved tips from this device.
                 </p>
                 <p className="mt-1 text-[13px] text-gray-500">This can't be undone.</p>
@@ -338,7 +338,7 @@ export function ProfilePage() {
                 onClick={() => setConfirmClose(true)}
                 className="shrink-0 rounded-xl border border-red-200 bg-white px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
               >
-                Close account
+                Delete account
               </button>
             </div>
           </Card>
@@ -347,9 +347,9 @@ export function ProfilePage() {
 
       {confirmClose && (
         <ConfirmDialog
-          title="Close your account?"
-          message="Your profile, transactions, budgets and categories will be permanently removed from this device. There is no way to get them back."
-          confirmLabel={closing ? "Closing…" : "Close account"}
+          title="Delete your account?"
+          message="Your profile, transactions, budgets and categories will be permanently removed from this device. There is no way to get them back. Are you sure?"
+          confirmLabel={closing ? "Deleting…" : "Delete account"}
           danger
           onConfirm={handleCloseAccount}
           onCancel={() => {

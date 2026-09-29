@@ -147,11 +147,11 @@ export function CategoriesPage() {
         onOpenMenu={openMenu}
         actions={
           <Link
-            to="/settings"
+            to="/profile"
             className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
           >
             <ArrowLeft size={15} />
-            Back to settings
+            Back to profile
           </Link>
         }
       />

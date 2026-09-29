@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   LogOut,
   ArrowLeftRight,
-  Settings,
   User,
   Wallet,
   X,
@@ -25,7 +24,6 @@ const links = [
   { label: "Transactions", icon: ArrowLeftRight, to: "/transactions" },
   { label: "Budgets", icon: Wallet, to: "/budgets" },
   { label: "Reports", icon: BarChart3, to: "/reports" },
-  { label: "Settings", icon: Settings, to: "/settings" },
 ];
 
 interface NavItemsProps {
@@ -68,7 +66,7 @@ function SidebarFooter({ collapsed, onLogout, onNavigate }: SidebarFooterProps) 
   return (
     <div className="mt-auto space-y-1 border-t border-line pt-4">
       <NavLink
-        to="/settings"
+        to="/profile"
         onClick={onNavigate}
         title={collapsed ? "Profile" : undefined}
         className={`sidebar-link flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 ${
